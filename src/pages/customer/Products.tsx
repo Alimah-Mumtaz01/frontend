@@ -16,7 +16,7 @@ import { apiRequest, extractList, getImageUrl } from "../../services/api";
 
 import type { Product, Variant } from "../../types/product";
 
-import { addToCart } from "../../utils/cart";
+import { addToCart } from "../../services/cartService";
 
 type FilterType = "Semua" | "Paket" | "Varian Rasa";
 
@@ -164,27 +164,39 @@ export default function Products() {
   };
 
   // Menambahkan produk dan rasa ke keranjang.
-  const confirmAddToCart = () => {
-    if (!selectedProduct || !selectedVariant) return;
+  
+const confirmAddToCart = () => {
+  if (!selectedProduct || !selectedVariant) return;
 
-    if (selectedVariant.stok < selectedProduct.jumlah_isi) {
-      showNotification("Stok varian tidak mencukupi.");
-      return;
-    }
+  if (selectedVariant.stok < selectedProduct.jumlah_isi) {
+    showNotification("Stok varian tidak mencukupi.");
+    return;
+  }
 
-    addToCart(selectedProduct, {
-      id_varian: selectedVariant.id_varian,
-      nama_varian: selectedVariant.nama_varian,
-      quantity: selectedProduct.jumlah_isi,
-    });
+  addToCart({
+    id_product: selectedProduct.id_product,
+    nama_product: selectedProduct.nama_product,
+    harga: Number(selectedProduct.harga),
+    jumlah_isi: selectedProduct.jumlah_isi,
+    gambar: selectedProduct.gambar,
+    quantity: 1,
+    variants: [
+      {
+        id_varian: selectedVariant.id_varian,
+        nama_varian: selectedVariant.nama_varian,
+        jumlah: selectedProduct.jumlah_isi,
+      },
+    ],
+  });
 
-    showNotification(
-      `${selectedProduct.nama_product} berhasil ditambahkan ke keranjang.`
-    );
+  showNotification(
+    `${selectedProduct.nama_product} berhasil ditambahkan ke keranjang.`
+  );
 
-    setSelectedProduct(null);
-    setSelectedVariant(null);
-  };
+  setSelectedProduct(null);
+  setSelectedVariant(null);
+};
+
 
   // Gambar produk dari backend.
   const getProductImage = (gambar: string | null) => {
