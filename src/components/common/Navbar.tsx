@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 
 import { Link, NavLink } from "react-router";
+import { getCartCount } from "../../services/cartService";
 
 const navItems = [
   { label: "Beranda", path: "/" },
