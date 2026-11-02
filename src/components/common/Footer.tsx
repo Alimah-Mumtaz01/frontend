@@ -56,17 +56,17 @@ export default function Footer() {
           <ul className="space-y-4 text-sm text-pink-100">
             <li className="flex items-start gap-3">
               <MapPin size={18} className="shrink-0" />
-              <span>Informasi alamat SoeSweet</span>
+              <span>Kp.Gandrung RT04 RW10 No.02 Desa Jambudipa Kec.Cisarua Kab.Bandung Barat Prov.Jawa Barat 40551</span>
             </li>
 
             <li className="flex items-center gap-3">
               <Phone size={18} />
-              <span>Informasi nomor telepon</span>
+              <span>+62 858 6240 7212</span>
             </li>
 
             <li className="flex items-center gap-3">
               <Mail size={18} />
-              <span>Informasi email SoeSweet</span>
+              <span>soesweet@gmail.com</span>
             </li>
           </ul>
         </div>
