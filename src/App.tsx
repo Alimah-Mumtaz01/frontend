@@ -3,6 +3,7 @@ import { Routes, Route } from "react-router";
 import CustomerLayout from "./layouts/CustomerLayout";
 
 import Home from "./pages/customer/Home";
+import Products from "./pages/customer/Products";
 import NotFound from "./pages/NotFound";
 
 function App() {
@@ -17,6 +18,8 @@ function App() {
           path="/"
           element={<Home />}
         />
+        {/* Produk */}
+        <Route path="/products" element={<Products />} />
 
       </Route>
 
