@@ -4,30 +4,27 @@ import CustomerLayout from "./layouts/CustomerLayout";
 
 import Home from "./pages/customer/Home";
 import Products from "./pages/customer/Products";
+import Cart from "./pages/customer/Cart";
 import NotFound from "./pages/NotFound";
+import Checkout from "./pages/customer/Checkout";
 
 function App() {
   return (
     <Routes>
 
-      {/* Customer Layout */}
       <Route element={<CustomerLayout />}>
 
-        {/* Halaman Home */}
-        <Route
-          path="/"
-          element={<Home />}
-        />
-        {/* Produk */}
+        <Route path="/" element={<Home />} />
+
         <Route path="/products" element={<Products />} />
 
-      </Route>
+        <Route path="/cart" element={<Cart />} />
 
-      {/* Halaman 404 */}
-      <Route
-        path="*"
-        element={<NotFound />}
-      />
+        <Route path="/checkout" element={<Checkout />} />
+
+        <Route path="*" element={<NotFound />} />
+
+      </Route>
 
     </Routes>
   );
