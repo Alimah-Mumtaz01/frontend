@@ -1,13 +1,11 @@
 import {
-  CakeSlice,
-  Camera,
-  Globe,
+  Music2,
   Mail,
   MapPin,
   Phone,
 } from "lucide-react";
 
-import { Link } from "react-router";
+import { NavLink } from "react-router";
 
 export default function Footer() {
   return (
@@ -17,15 +15,11 @@ export default function Footer() {
 
         {/* Brand */}
         <div>
-          <div className="mb-4 flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white text-soe-primary">
-              <CakeSlice size={25} />
-            </div>
-
-            <h2 className="font-serif text-2xl font-bold">
-              SoeSweet
-            </h2>
-          </div>
+          <img
+            src="/images/logo-soesweet.png"
+            alt="SoeSweet"
+            className="mb-4 h-20 w-auto max-w-[250px] object-contain"
+          />
 
           <p className="max-w-xs text-sm leading-7 text-pink-100">
             Nikmati kelezatan kue soes dengan berbagai pilihan
@@ -42,10 +36,29 @@ export default function Footer() {
           <h3 className="mb-5 font-semibold">Navigasi</h3>
 
           <ul className="space-y-3 text-sm text-pink-100">
-            <li><Link to="/" className="hover:text-white">Beranda</Link></li>
-            <li><Link to="/products" className="hover:text-white">Produk</Link></li>
-            <li><Link to="/about" className="hover:text-white">Tentang Kami</Link></li>
-            <li><Link to="/contact" className="hover:text-white">Kontak</Link></li>
+            {[
+              { label: "Beranda", path: "/" },
+              { label: "Produk", path: "/products" },
+              { label: "Tentang Kami", path: "/about" },
+              { label: "Kontak", path: "/contact" },
+              { label: "Ulasan", path: "/reviews" },
+            ].map((item) => (
+              <li key={item.path}>
+                <NavLink
+                  to={item.path}
+                  end={item.path === "/"}
+                  className={({ isActive }) =>
+                    `inline-flex items-center border-l-2 pl-2 transition-colors ${
+                      isActive
+                        ? "border-[#FF8FA3] font-bold text-white"
+                        : "border-transparent hover:text-white"
+                    }`
+                  }
+                >
+                  {item.label}
+                </NavLink>
+              </li>
+            ))}
           </ul>
         </div>
 
@@ -86,7 +99,26 @@ export default function Footer() {
               aria-label="Instagram"
               className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 transition hover:bg-soe-primary"
             >
-              <Camera size={19} />
+              <svg
+                aria-hidden="true"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                className="h-[19px] w-[19px]"
+              >
+                <rect x="3" y="3" width="18" height="18" rx="5" />
+                <circle cx="12" cy="12" r="4" />
+                <circle cx="17.5" cy="6.5" r=".75" fill="currentColor" />
+              </svg>
+            </a>
+
+            <a
+              href="#"
+              aria-label="TikTok"
+              className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 transition hover:bg-soe-primary"
+            >
+              <Music2 size={19} />
             </a>
 
             <a
@@ -94,7 +126,14 @@ export default function Footer() {
               aria-label="Facebook"
               className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 transition hover:bg-soe-primary"
             >
-              <Globe size={19} />
+              <svg
+                aria-hidden="true"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+                className="h-[19px] w-[19px]"
+              >
+                <path d="M13.5 21v-8h2.7l.4-3h-3.1V8.1c0-.9.3-1.5 1.6-1.5h1.7V3.9c-.3 0-1.4-.1-2.6-.1-2.6 0-4.4 1.6-4.4 4.5V10H7v3h2.8v8h3.7z" />
+              </svg>
             </a>
           </div>
         </div>
