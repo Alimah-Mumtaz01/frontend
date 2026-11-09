@@ -1,4 +1,3 @@
-
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router";
 
@@ -18,8 +17,13 @@ import {
 } from "lucide-react";
 
 import type { CartItem } from "../../types/cart";
+import type { Product } from "../../types/product";
 
-import { getImageUrl } from "../../services/api";
+import {
+  apiRequest,
+  extractList,
+  getImageUrl,
+} from "../../services/api";
 
 import {
   getCart,
@@ -36,12 +40,6 @@ const formatRupiah = (value: number) => {
     maximumFractionDigits: 0,
   }).format(value);
 };
-
-// Ongkir estimasi mengikuti konfigurasi frontend.
-// Backend tetap menjadi sumber perhitungan final.
-const DELIVERY_FEE = Number(
-  import.meta.env.VITE_DELIVERY_FEE ?? 10000
-);
 
 const getItemKey = (item: CartItem) => {
   const variants = [...item.variants]
@@ -69,7 +67,9 @@ export default function Cart() {
 
   // Mengambil data keranjang saat halaman dibuka.
   useEffect(() => {
-    const loadCart = () => {
+    let isMounted = true;
+
+    const loadCart = async () => {
       const data = getCart();
 
       setCart(data);
@@ -78,9 +78,37 @@ export default function Cart() {
       setSelectedItems(data.map(getItemKey));
 
       setReady(true);
+
+      if (data.length === 0) return;
+
+      try {
+        const response = await apiRequest<unknown>("/products");
+        const products = extractList<Product>(response, "products");
+        const productsById = new Map(
+          products.map((product) => [product.id_product, product])
+        );
+        const refreshedCart = data.map((item) => {
+          const product = productsById.get(item.id_product);
+
+          return product
+            ? { ...item, gambar: product.gambar }
+            : item;
+        });
+
+        if (isMounted) {
+          setCart(refreshedCart);
+          saveCart(refreshedCart);
+        }
+      } catch (error) {
+        console.error("Gagal memperbarui foto produk keranjang:", error);
+      }
     };
 
-    loadCart();
+    void loadCart();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   // Menyinkronkan perubahan keranjang dari komponen lain.
@@ -127,12 +155,6 @@ export default function Cart() {
   const subtotal = useMemo(() => {
     return getCartSubtotal(selectedCart);
   }, [selectedCart]);
-
-  // Estimasi ongkir.
-  const shippingCost =
-    selectedCart.length > 0 ? DELIVERY_FEE : 0;
-
-  const total = subtotal + shippingCost;
 
   const allSelected =
     cart.length > 0 &&
@@ -386,7 +408,9 @@ export default function Cart() {
                   const isSelected =
                     selectedItems.includes(key);
 
-                  const image = getImageUrl(item.gambar);
+                  const image = item.gambar
+                    ? getImageUrl(item.gambar)
+                    : null;
 
                   const itemSubtotal =
                     Number(item.harga) * item.quantity;
@@ -419,15 +443,20 @@ export default function Cart() {
                         {/* PRODUCT IMAGE */}
                         <div className="h-24 w-24 shrink-0 overflow-hidden rounded-xl bg-[#FFF0F3] sm:h-28 sm:w-28">
 
-                          <img
-                            src={image}
-                            alt={item.nama_product}
-                            className="h-full w-full object-cover"
-                            onError={(event) => {
-                              event.currentTarget.src =
-                                "/images/placeholder-soes.png";
-                            }}
-                          />
+                          {image ? (
+                            <img
+                              src={image}
+                              alt={item.nama_product}
+                              className="h-full w-full object-cover"
+                              onError={(event) => {
+                                event.currentTarget.style.display = "none";
+                              }}
+                            />
+                          ) : (
+                            <div className="flex h-full w-full items-center justify-center text-[#C9184A]">
+                              <ShoppingBag size={30} />
+                            </div>
+                          )}
 
                         </div>
 
@@ -567,53 +596,22 @@ export default function Cart() {
                 </div>
 
                 {/* SUBTOTAL */}
-                <div className="space-y-4">
+                <div className="flex items-center justify-between rounded-xl border border-[#FFE0E6] bg-[#FFFBFC] px-4 py-4">
 
-                  <div className="flex items-center justify-between rounded-xl border border-[#FFE0E6] bg-[#FFFBFC] px-4 py-3">
-
-                    <span className="text-sm text-[#86505F]">
-                      Subtotal
-                    </span>
-
-                    <span className="text-sm font-bold">
-                      {formatRupiah(subtotal)}
-                    </span>
-
-                  </div>
-
-                  <div className="flex items-center justify-between rounded-xl border border-[#FFE0E6] bg-[#FFFBFC] px-4 py-3">
-
-                    <span className="text-sm text-[#86505F]">
-                      Estimasi Ongkir
-                    </span>
-
-                    <span className="text-sm font-bold">
-                      {formatRupiah(shippingCost)}
-                    </span>
-
-                  </div>
-
-                </div>
-
-                <div className="my-5 border-t border-dashed border-[#FFD6DE]" />
-
-                {/* TOTAL */}
-                <div className="flex items-center justify-between gap-2">
-
-                  <span className="font-bold">
-                    Total
+                  <span className="text-sm text-[#86505F]">
+                    Subtotal
                   </span>
 
-                  <span className="text-xl font-extrabold text-[#C9184A]">
-                    {formatRupiah(total)}
+                  <span className="text-base font-extrabold text-[#C9184A]">
+                    {formatRupiah(subtotal)}
                   </span>
 
                 </div>
 
-                <p className="mt-3 text-xs leading-5 text-[#9B6575]">
-                  Ongkir di atas merupakan estimasi pengiriman.
-                  Biaya akhir akan disesuaikan dengan metode
-                  pengiriman pada halaman checkout.
+                {/* SHIPPING INFORMATION */}
+                <p className="mt-4 text-xs leading-5 text-[#9B6575]">
+                  Biaya pengiriman akan dihitung pada halaman
+                  checkout setelah kamu memilih metode pengiriman.
                 </p>
 
                 {/* CHECKOUT BUTTON */}
