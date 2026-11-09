@@ -1,15 +1,17 @@
-
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router";
+import { Link } from "react-router";
+
 import {
   Search,
   Plus,
   Heart,
-  ShoppingBag,
   X,
   LoaderCircle,
   AlertCircle,
   CheckCircle2,
   CakeSlice,
+  Star,
 } from "lucide-react";
 
 import { apiRequest, extractList, getImageUrl } from "../../services/api";
@@ -17,6 +19,16 @@ import { apiRequest, extractList, getImageUrl } from "../../services/api";
 import type { Product, Variant } from "../../types/product";
 
 import { addToCart } from "../../services/cartService";
+import { useAuth } from "../../context/AuthContext";
+import {
+  getVariantImage,
+  getVariantThumbnail,
+} from "../../utils/variantImage";
+
+import {
+  getProductRating,
+  type ProductRating,
+} from "../../services/reviewService";
 
 type FilterType = "Semua" | "Paket" | "Varian Rasa";
 
@@ -35,8 +47,16 @@ const formatRupiah = (value: number) => {
 };
 
 export default function Products() {
+  const navigate = useNavigate();
+
+  // Mengambil status autentikasi pengguna.
+  const { isAuthenticated, isLoading: authLoading } = useAuth();
+
   const [products, setProducts] = useState<Product[]>([]);
   const [variants, setVariants] = useState<Variant[]>([]);
+  const [productRatings, setProductRatings] = useState<
+    Record<number, ProductRating>
+  >({});
 
   const [activeFilter, setActiveFilter] =
     useState<FilterType>("Semua");
@@ -48,8 +68,10 @@ export default function Products() {
 
   const [notification, setNotification] = useState("");
 
-  const [selectedVariant, setSelectedVariant] =
-    useState<Variant | null>(null);
+  // Menyimpan jumlah masing-masing varian yang dipilih.
+  const [selectedVariants, setSelectedVariants] = useState<
+    Record<number, number>
+  >({});
 
   const [selectedProduct, setSelectedProduct] =
     useState<Product | null>(null);
@@ -77,11 +99,48 @@ export default function Products() {
           "variants"
         );
 
-        setProducts(
-          productData.filter(
-            (product) => product.status === "aktif"
-          )
+        const activeProducts = productData.filter(
+          (product) => product.status === "aktif"
         );
+
+        setProducts(activeProducts);
+
+        // Mengambil rating masing-masing produk.
+        const ratingResults = await Promise.all(
+          activeProducts.map(async (product) => {
+            try {
+              const rating = await getProductRating(
+                product.id_product
+              );
+
+              return {
+                id_product: product.id_product,
+                rating,
+              };
+            } catch (err) {
+              console.error(
+                `Gagal mengambil rating produk ${product.id_product}:`,
+                err
+              );
+
+              return {
+                id_product: product.id_product,
+                rating: null,
+              };
+            }
+          })
+        );
+
+        // Menyimpan rating berdasarkan ID produk.
+        const ratingMap: Record<number, ProductRating> = {};
+
+        ratingResults.forEach((result) => {
+          if (result.rating) {
+            ratingMap[result.id_product] = result.rating;
+          }
+        });
+
+        setProductRatings(ratingMap);
 
         setVariants(
           variantData.filter(
@@ -146,57 +205,178 @@ export default function Products() {
     }, 2500);
   };
 
-  // Membuka pilihan rasa sebelum menambahkan produk.
+  // Total seluruh varian yang sudah dipilih.
+  const totalSelectedVariants = Object.values(
+    selectedVariants
+  ).reduce((total, quantity) => total + quantity, 0);
+
+  // Sisa jumlah kue yang masih harus dipilih.
+  const remainingVariants = selectedProduct
+    ? selectedProduct.jumlah_isi - totalSelectedVariants
+    : 0;
+
+  // Membuka modal pemilihan rasa.
   const handleAddProduct = (product: Product) => {
+    // Tunggu sampai pemeriksaan autentikasi selesai.
+    if (authLoading) {
+      return;
+    }
+
+    // Jika belum login, arahkan ke halaman Login.
+    if (!isAuthenticated) {
+      navigate("/login", {
+        state: {
+          from: {
+            pathname: "/products",
+          },
+        },
+      });
+
+      return;
+    }
+
+    // Jika sudah login, periksa ketersediaan varian.
     const availableVariants = variants.filter(
-      (variant) => variant.stok >= product.jumlah_isi
+      (variant) => Number(variant.stok) > 0
     );
 
     if (availableVariants.length === 0) {
       showNotification(
-        "Maaf, stok varian rasa untuk produk ini tidak mencukupi."
+        "Maaf, seluruh stok varian rasa sedang habis."
       );
       return;
     }
 
+    // Buka modal pemilihan varian.
     setSelectedProduct(product);
-    setSelectedVariant(availableVariants[0]);
+    setSelectedVariants({});
   };
 
-  // Menambahkan produk dan rasa ke keranjang.
-  
-const confirmAddToCart = () => {
-  if (!selectedProduct || !selectedVariant) return;
+  // Mengatur jumlah pcs untuk masing-masing varian.
+  const handleVariantQuantityChange = (
+    variant: Variant,
+    change: number
+  ) => {
+    setSelectedVariants((previous) => {
+      const currentQuantity = previous[variant.id_varian] || 0;
+      const newQuantity = currentQuantity + change;
 
-  if (selectedVariant.stok < selectedProduct.jumlah_isi) {
-    showNotification("Stok varian tidak mencukupi.");
-    return;
-  }
+      // Jumlah pilihan tidak boleh negatif.
+      if (newQuantity < 0) return previous;
 
-  addToCart({
-    id_product: selectedProduct.id_product,
-    nama_product: selectedProduct.nama_product,
-    harga: Number(selectedProduct.harga),
-    jumlah_isi: selectedProduct.jumlah_isi,
-    gambar: selectedProduct.gambar,
-    quantity: 1,
-    variants: [
-      {
-        id_varian: selectedVariant.id_varian,
-        nama_varian: selectedVariant.nama_varian,
-        jumlah: selectedProduct.jumlah_isi,
-      },
-    ],
-  });
+      // Jumlah pilihan tidak boleh melebihi stok.
+      if (newQuantity > Number(variant.stok)) return previous;
 
-  showNotification(
-    `${selectedProduct.nama_product} berhasil ditambahkan ke keranjang.`
-  );
+      const currentTotal = Object.values(previous).reduce(
+        (total, quantity) => total + quantity,
+        0
+      );
 
-  setSelectedProduct(null);
-  setSelectedVariant(null);
-};
+      const newTotal =
+        currentTotal - currentQuantity + newQuantity;
 
+      // Total pilihan tidak boleh melebihi isi paket.
+      if (
+        !selectedProduct ||
+        newTotal > selectedProduct.jumlah_isi
+      ) {
+        return previous;
+      }
+
+      const updated = { ...previous };
+
+      if (newQuantity === 0) {
+        delete updated[variant.id_varian];
+      } else {
+        updated[variant.id_varian] = newQuantity;
+      }
+
+      return updated;
+    });
+  };
+
+  // Menambahkan produk dengan kombinasi varian ke keranjang.
+  const confirmAddToCart = () => {
+    if (!selectedProduct) return;
+
+    // Pastikan pengguna masih login.
+    if (!isAuthenticated) {
+      setSelectedProduct(null);
+      setSelectedVariants({});
+
+      navigate("/login", {
+        state: {
+          from: {
+            pathname: "/products",
+          },
+        },
+      });
+
+      return;
+    }
+
+    // Pastikan jumlah rasa tepat sama dengan isi paket.
+    if (
+      totalSelectedVariants !== selectedProduct.jumlah_isi
+    ) {
+      showNotification(
+        `Silakan pilih tepat ${selectedProduct.jumlah_isi} pcs varian rasa.`
+      );
+      return;
+    }
+
+    // Bentuk data varian sesuai struktur cartService.
+    const selectedVariantItems = variants
+      .filter(
+        (variant) => (selectedVariants[variant.id_varian] || 0) > 0
+      )
+      .map((variant) => ({
+        id_varian: variant.id_varian,
+        nama_varian: variant.nama_varian,
+        jumlah: selectedVariants[variant.id_varian],
+      }));
+
+    // Validasi stok terakhir sebelum dimasukkan ke keranjang.
+    const insufficientStock = selectedVariantItems.find((selected) => {
+      const variant = variants.find(
+        (item) => item.id_varian === selected.id_varian
+      );
+
+      return !variant || selected.jumlah > Number(variant.stok);
+    });
+
+    if (insufficientStock) {
+      showNotification(
+        `Stok ${insufficientStock.nama_varian} tidak mencukupi.`
+      );
+      return;
+    }
+
+    try {
+      addToCart({
+        id_product: selectedProduct.id_product,
+        nama_product: selectedProduct.nama_product,
+        harga: Number(selectedProduct.harga),
+        jumlah_isi: selectedProduct.jumlah_isi,
+        gambar: selectedProduct.gambar,
+        quantity: 1,
+        variants: selectedVariantItems,
+      });
+
+      showNotification(
+        `${selectedProduct.nama_product} berhasil ditambahkan ke keranjang.`
+      );
+
+      setSelectedProduct(null);
+      setSelectedVariants({});
+    } catch (err) {
+      showNotification(
+        err instanceof Error
+          ? err.message
+          : "Gagal menambahkan produk ke keranjang."
+      );
+    }
+  };
 
   // Gambar produk dari backend.
   const getProductImage = (gambar: string | null) => {
@@ -379,13 +559,13 @@ const confirmAddToCart = () => {
 
               {filteredProducts.map((product, index) => {
 
-                const originalVariant = variants.find(
-                  (variant) =>
-                    variant.nama_varian.toLowerCase() === "original" &&
-                    variant.stok >= product.jumlah_isi
+                // Tombol aktif jika minimal ada satu varian yang stoknya tersedia.
+                const hasAvailableVariant = variants.some(
+                  (variant) => Number(variant.stok) > 0
                 );
 
                 const image = getProductImage(product.gambar);
+                const rating = productRatings[product.id_product];
 
                 return (
                   <article
@@ -406,14 +586,6 @@ const confirmAddToCart = () => {
                         }}
                       />
 
-                      <button
-                        type="button"
-                        aria-label="Produk favorit"
-                        className="absolute left-4 top-4 flex h-9 w-9 items-center justify-center rounded-full bg-white/90 text-[#C9184A] shadow-sm transition hover:bg-[#C9184A] hover:text-white"
-                      >
-                        <Heart size={18} />
-                      </button>
-
                       {product.jumlah_isi === 1 && (
                         <span className="absolute right-3 top-3 rounded-full bg-white/95 px-3 py-1 text-xs font-bold text-[#C9184A]">
                           Satuan
@@ -433,11 +605,55 @@ const confirmAddToCart = () => {
                         {product.jumlah_isi} pcs
                       </p>
 
+                      {/* RATING PRODUK */}
+                      <div className="mt-2 flex flex-wrap items-center gap-2">
+
+                        {rating && rating.jumlah_review > 0 ? (
+                          <>
+                            <div className="flex items-center gap-0.5">
+                              {Array.from({ length: 5 }, (_, index) => (
+                                <Star
+                                  key={index}
+                                  size={15}
+                                  className={
+                                    index < Math.round(
+                                      Number(rating.rata_rata_rating)
+                                    )
+                                      ? "fill-[#F5B942] text-[#F5B942]"
+                                      : "text-[#E5CBD1]"
+                                  }
+                                />
+                              ))}
+                            </div>
+
+                            <span className="text-xs font-bold text-[#590D22]">
+                              {Number(rating.rata_rata_rating).toFixed(1)}
+                            </span>
+
+                            <span className="text-xs text-[#9B6575]">
+                              ({rating.jumlah_review} ulasan)
+                            </span>
+                          </>
+                        ) : (
+                          <span className="text-xs text-[#B58A96]">
+                            Belum ada ulasan
+                          </span>
+                        )}
+
+                      </div>
+
                       {product.deskripsi && (
                         <p className="mt-2 line-clamp-2 text-xs leading-5 text-[#A87987]">
                           {product.deskripsi}
                         </p>
                       )}
+
+                      <Link
+                        to={`/products/${product.id_product}`}
+                        className="inline-flex items-center justify-center rounded-full border border-[#C9184A] px-5 py-2.5 text-sm font-semibold text-[#C9184A] transition hover:bg-[#C9184A] hover:text-white"
+                      >
+                        Lihat Detail
+                      </Link>
 
                       <div className="mt-4 flex items-center justify-between">
 
@@ -447,7 +663,7 @@ const confirmAddToCart = () => {
 
                         <button
                           type="button"
-                          disabled={!originalVariant}
+                          disabled={!hasAvailableVariant || authLoading}
                           onClick={() => handleAddProduct(product)}
                           aria-label={`Tambah ${product.nama_product} ke keranjang`}
                           className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#C9184A] text-white shadow-md transition hover:bg-[#A4133C] disabled:cursor-not-allowed disabled:bg-gray-300"
@@ -457,9 +673,9 @@ const confirmAddToCart = () => {
 
                       </div>
 
-                      {!originalVariant && (
+                      {!hasAvailableVariant && (
                         <p className="mt-2 text-xs text-[#B45365]">
-                          Varian Original sedang tidak tersedia.
+                          Stok seluruh varian rasa sedang habis.
                         </p>
                       )}
 
@@ -517,23 +733,32 @@ const confirmAddToCart = () => {
 
                 <article
                   key={variant.id_varian}
-                  className="rounded-2xl border border-[#FFE0E6] bg-white p-5 shadow-sm transition hover:-translate-y-1 hover:shadow-lg"
+                  className="relative overflow-hidden rounded-2xl border border-[#FFE0E6] p-5 shadow-sm transition hover:-translate-y-1 hover:shadow-lg"
                 >
+                  <img
+                    src={getVariantImage(variant.nama_varian)}
+                    alt=""
+                    aria-hidden="true"
+                    className="absolute inset-0 h-full w-full object-cover"
+                  />
+                  <div className="absolute inset-0 bg-white/75" />
 
-                  <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#FFF0F3] text-[#C9184A]">
-                    <CakeSlice size={28} />
-                  </div>
+                  <img
+                    src={getVariantThumbnail(variant.nama_varian)}
+                    alt={`Varian ${variant.nama_varian}`}
+                    className="relative z-10 mb-4 h-14 w-14 rounded-2xl border border-white/80 object-cover shadow-sm"
+                  />
 
-                  <h3 className="font-bold">
+                  <h3 className="relative z-10 font-bold">
                     {variant.nama_varian}
                   </h3>
 
-                  <p className="mt-2 text-sm text-[#9B6575]">
+                  <p className="relative z-10 mt-2 text-sm text-[#9B6575]">
                     Stok: {variant.stok} pcs
                   </p>
 
                   <span
-                    className={`mt-3 inline-block rounded-full px-3 py-1 text-xs font-semibold ${
+                    className={`relative z-10 mt-3 inline-block rounded-full px-3 py-1 text-xs font-semibold ${
                       variant.stok > 0
                         ? "bg-[#E9F8EE] text-[#25834B]"
                         : "bg-[#FFE5E8] text-[#C9184A]"
@@ -606,110 +831,264 @@ const confirmAddToCart = () => {
         </section>
       )}
 
-      {/* VARIANT SELECTION MODAL */}
+      {/* MODAL PILIH VARIAN */}
       {selectedProduct && (
+        <div className="
+          fixed inset-0 z-[100]
+          flex items-center justify-center
+          overflow-y-auto
+          bg-[#390817]/50
+          px-4 py-4
+          backdrop-blur-sm
+        ">
 
-        <div
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-[#390817]/50 px-4 backdrop-blur-sm"
-          onClick={() => {
-            setSelectedProduct(null);
-            setSelectedVariant(null);
-          }}
-        >
+          {/* CONTAINER MODAL */}
+          <div className="
+            flex w-full max-w-md
+            max-h-[calc(100dvh-2rem)]
+            flex-col
+            overflow-hidden
+            rounded-3xl
+            bg-white
+            shadow-2xl
+          ">
 
-          <div
-            className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
+            {/* HEADER */}
+            <div className="shrink-0 border-b border-[#FFE0E6] px-6 py-5">
 
-            <div className="flex items-center justify-between">
-
-              <h2 className="text-xl font-bold">
+              <h2 className="text-xl font-extrabold text-[#590D22]">
                 Pilih Varian Rasa
               </h2>
 
-              <button
-                onClick={() => {
-                  setSelectedProduct(null);
-                  setSelectedVariant(null);
-                }}
-                aria-label="Tutup"
-                className="rounded-full p-2 text-[#A4133C] hover:bg-[#FFF0F3]"
-              >
-                <X size={20} />
-              </button>
+              <p className="mt-1 text-sm text-[#9B6575]">
+                Pilih varian rasa untuk {selectedProduct.nama_product}.
+              </p>
 
             </div>
 
-            <p className="mt-2 text-sm text-[#9B6575]">
-              {selectedProduct.nama_product} ·{" "}
-              {selectedProduct.jumlah_isi} pcs
-            </p>
-
-            <div className="mt-5 space-y-3">
+            {/* DAFTAR VARIAN */}
+            <div className="
+              min-h-0
+              flex-1
+              overflow-y-auto
+              overscroll-contain
+              px-6
+              py-4
+              space-y-3
+            ">
 
               {variants.map((variant) => {
+                const selectedQuantity =
+                  selectedVariants[variant.id_varian] || 0;
 
-                const isAvailable =
-                  variant.stok >= selectedProduct.jumlah_isi;
+                const isSelected = selectedQuantity > 0;
+                const isOutOfStock = Number(variant.stok) <= 0;
+
+                const cannotAddMore =
+                  totalSelectedVariants >= selectedProduct.jumlah_isi ||
+                  selectedQuantity >= Number(variant.stok);
 
                 return (
-                  <button
+                  <div
                     key={variant.id_varian}
-                    type="button"
-                    disabled={!isAvailable}
-                    onClick={() => setSelectedVariant(variant)}
-                    className={`flex w-full items-center justify-between rounded-xl border p-4 text-left transition ${
-                      selectedVariant?.id_varian === variant.id_varian
-                        ? "border-[#C9184A] bg-[#FFF0F3]"
-                        : "border-[#FFE0E6] hover:border-[#FF8FA3]"
-                    } disabled:cursor-not-allowed disabled:opacity-40`}
+                    className={`relative flex items-center justify-between gap-3 overflow-hidden rounded-2xl border p-4 transition-all duration-200 ${
+                      isSelected
+                        ? "border-[#C9184A]"
+                        : "border-[#FFE0E6]"
+                    } ${isOutOfStock ? "opacity-60" : ""}`}
                   >
-
-                    <div>
-
-                      <p className="font-semibold">
-                        {variant.nama_varian}
-                      </p>
-
-                      <p className="mt-1 text-xs text-[#9B6575]">
-                        Stok {variant.stok} pcs
-                      </p>
-
-                    </div>
-
+                    <img
+                      src={getVariantImage(variant.nama_varian)}
+                      alt=""
+                      aria-hidden="true"
+                      className="absolute inset-0 h-full w-full object-cover"
+                    />
                     <div
-                      className={`h-5 w-5 rounded-full border-2 ${
-                        selectedVariant?.id_varian === variant.id_varian
-                          ? "border-[#C9184A] bg-[#C9184A] ring-2 ring-[#FFCCD5]"
-                          : "border-[#FFB3C1]"
+                      className={`absolute inset-0 ${
+                        isSelected ? "bg-[#FFF0F3]/75" : "bg-white/75"
                       }`}
                     />
 
-                  </button>
+                    {/* INFORMASI VARIAN */}
+                    <div className="relative z-10 min-w-0 flex-1">
+
+                      <h3 className="font-bold text-[#590D22]">
+                        {variant.nama_varian}
+                      </h3>
+
+                      <p className="mt-1 text-sm text-[#9B6575]">
+                        Stok {variant.stok} pcs
+                      </p>
+
+                      {isSelected && (
+                        <p className="mt-1 text-xs font-semibold text-[#C9184A]">
+                          Dipilih: {selectedQuantity} pcs
+                        </p>
+                      )}
+
+                      {isOutOfStock && (
+                        <p className="mt-1 text-xs font-medium text-red-500">
+                          Stok habis
+                        </p>
+                      )}
+
+                    </div>
+
+                    {/* PENGATUR JUMLAH VARIAN */}
+                    <div className="relative z-10 flex shrink-0 items-center gap-2">
+
+                      {/* TOMBOL KURANG */}
+                      <button
+                        type="button"
+                        onClick={() =>
+                          handleVariantQuantityChange(variant, -1)
+                        }
+                        disabled={selectedQuantity === 0}
+                        aria-label={`Kurangi ${variant.nama_varian}`}
+                        className="
+                          flex h-9 w-9 items-center justify-center
+                          rounded-full border border-[#FFD6DE]
+                          text-lg font-bold text-[#C9184A]
+                          transition hover:bg-[#FFE0E6]
+                          disabled:cursor-not-allowed
+                          disabled:opacity-30
+                        "
+                      >
+                        −
+                      </button>
+
+                      {/* JUMLAH */}
+                      <span className="
+                        min-w-6 text-center
+                        text-sm font-bold text-[#590D22]
+                      ">
+                        {selectedQuantity}
+                      </span>
+
+                      {/* TOMBOL TAMBAH */}
+                      <button
+                        type="button"
+                        onClick={() =>
+                          handleVariantQuantityChange(variant, 1)
+                        }
+                        disabled={isOutOfStock || cannotAddMore}
+                        aria-label={`Tambah ${variant.nama_varian}`}
+                        className="
+                          flex h-9 w-9 items-center justify-center
+                          rounded-full bg-[#C9184A]
+                          text-lg font-bold text-white
+                          transition hover:bg-[#A4133C]
+                          disabled:cursor-not-allowed
+                          disabled:opacity-30
+                        "
+                      >
+                        +
+                      </button>
+
+                    </div>
+
+                  </div>
                 );
               })}
 
             </div>
 
-            <div className="mt-6 flex items-center justify-between border-t border-[#FFE0E6] pt-5">
+            {/* FOOTER */}
+            <div className="
+              shrink-0
+              border-t border-[#FFE0E6]
+              bg-white
+              px-6 py-5
+            ">
 
-              <div>
-                <p className="text-xs text-[#9B6575]">
-                  Total harga
+              {/* JUMLAH VARIAN YANG DIPILIH */}
+              <div className="mb-4 rounded-xl bg-[#FFF0F3] p-4">
+
+                <div className="flex items-center justify-between">
+
+                  <span className="text-sm font-semibold text-[#590D22]">
+                    Jumlah varian dipilih
+                  </span>
+
+                  <span className="text-sm font-bold text-[#C9184A]">
+                    {totalSelectedVariants} / {selectedProduct.jumlah_isi} pcs
+                  </span>
+
+                </div>
+
+                {/* PROGRESS BAR */}
+                <div className="mt-3 h-2 overflow-hidden rounded-full bg-[#FFD6DE]">
+
+                  <div
+                    className="h-full rounded-full bg-[#C9184A] transition-all duration-300"
+                    style={{
+                      width: `${Math.min(
+                        (totalSelectedVariants /
+                          selectedProduct.jumlah_isi) * 100,
+                        100
+                      )}%`,
+                    }}
+                  />
+
+                </div>
+
+                <p className="mt-2 text-xs text-[#9B6575]">
+                  {remainingVariants > 0
+                    ? `Silakan pilih ${remainingVariants} pcs lagi.`
+                    : "Jumlah varian sudah sesuai dengan isi paket."}
                 </p>
 
-                <p className="text-lg font-extrabold text-[#C9184A]">
-                  {formatRupiah(Number(selectedProduct.harga))}
-                </p>
               </div>
 
+              {/* HARGA PRODUK */}
+              <div className="mb-4 flex items-center justify-between">
+
+                <span className="text-sm text-[#9B6575]">
+                  Harga Produk
+                </span>
+
+                <span className="text-lg font-extrabold text-[#C9184A]">
+                  {formatRupiah(Number(selectedProduct.harga))}
+                </span>
+
+              </div>
+
+              {/* TOMBOL TAMBAHKAN */}
               <button
-                disabled={!selectedVariant}
+                type="button"
                 onClick={confirmAddToCart}
-                className="rounded-full bg-[#C9184A] px-6 py-3 text-sm font-bold text-white transition hover:bg-[#A4133C] disabled:cursor-not-allowed disabled:bg-gray-300"
+                disabled={
+                  totalSelectedVariants !== selectedProduct.jumlah_isi
+                }
+                className="
+                  w-full rounded-xl
+                  bg-[#C9184A] px-5 py-3.5
+                  font-bold text-white
+                  transition hover:bg-[#A4133C]
+                  disabled:cursor-not-allowed
+                  disabled:bg-gray-300
+                  disabled:shadow-none
+                "
               >
-                Tambahkan
+                Tambahkan ke Keranjang
+              </button>
+
+              {/* TOMBOL BATAL */}
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedProduct(null);
+                  setSelectedVariants({});
+                }}
+                className="
+                  mt-2 w-full rounded-xl
+                  border border-[#FFD6DE]
+                  px-5 py-3
+                  text-sm font-semibold text-[#A4133C]
+                  transition hover:bg-[#FFF0F3]
+                "
+              >
+                Batal
               </button>
 
             </div>
