@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 
 import {
@@ -14,6 +13,7 @@ import {
 } from "lucide-react";
 
 import { Link } from "react-router";
+import heroImage from "../../assets/images/background/hero-soes.png";
 
 import {
   apiRequest,
@@ -25,6 +25,7 @@ import type {
   Product,
   Variant,
 } from "../../types/product";
+import { getVariantThumbnail } from "../../utils/variantImage";
 
 /* =========================================
    API ENDPOINT
@@ -183,9 +184,9 @@ export default function Home() {
         {/* Background Image */}
         <div className="absolute inset-0 -z-20">
           <img
-            src="/images/hero-soes.png"
+            src={heroImage}
             alt="Kue soes strawberry SoeSweet"
-            className="h-full w-full object-cover object-center"
+            className="h-full w-full object-cover object-[center_65%]"
           />
         </div>
 
@@ -195,12 +196,6 @@ export default function Home() {
         <div className="mx-auto flex min-h-[560px] max-w-7xl items-center px-6 py-16 lg:px-10">
 
           <div className="max-w-xl">
-
-            {/* Badge */}
-            <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-pink-200 bg-soe-primary px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-pink-200">
-              <Heart size={16} fill="currentColor" />
-              Sweet & Fresh
-            </div>
 
             {/* Brand */}
             <h1 className="font-serif text-5xl font-bold tracking-tight text-soe-dark md:text-7xl">
@@ -235,13 +230,13 @@ export default function Home() {
                 Belanja Sekarang
               </Link>
 
-              <a
-                href="#tentang-soesweet"
+              <Link
+                to="/about"
                 className="inline-flex items-center gap-2 rounded-full border-2 border-soe-primary bg-white/80 px-7 py-3.5 text-sm font-bold text-soe-primary transition hover:bg-soe-light"
               >
                 Tentang Kami
                 <ArrowRight size={17} />
-              </a>
+              </Link>
 
             </div>
           </div>
@@ -542,9 +537,11 @@ export default function Home() {
                       className="flex min-w-36 items-center gap-3 rounded-full border border-pink-100 bg-soe-light px-5 py-3 shadow-sm transition hover:-translate-y-1 hover:border-soe-secondary"
                     >
 
-                      <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-soe-primary">
-                        <CakeSlice size={19} />
-                      </div>
+                      <img
+                        src={getVariantThumbnail(variant.nama_varian)}
+                        alt={`Varian ${variant.nama_varian}`}
+                        className="h-9 w-9 rounded-full border border-white object-cover shadow-sm"
+                      />
 
                       <div>
                         <p className="text-sm font-bold text-soe-dark">
