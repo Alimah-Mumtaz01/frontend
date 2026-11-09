@@ -1,5 +1,6 @@
-
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+
+const TOKEN_KEY = "soesweet_token";
 
 if (!API_BASE_URL) {
   throw new Error(
@@ -8,20 +9,40 @@ if (!API_BASE_URL) {
 }
 
 /**
- * Mengirim request JSON ke backend SoeSweet.
+ * Mengirim request ke backend 
+ * JWT ditambahkan otomatis jika pengguna sudah login.
  */
 export async function apiRequest<T>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<T> {
+  const token = localStorage.getItem(TOKEN_KEY);
+
+  const headers = new Headers(options.headers);
+
+  if (
+    options.body &&
+    !(options.body instanceof FormData) &&
+    !headers.has("Content-Type")
+  ) {
+    headers.set("Content-Type", "application/json");
+  }
+
+  if (token && !headers.has("Authorization")) {
+    headers.set("Authorization", `Bearer ${token}`);
+  }
+
+  const baseUrl = API_BASE_URL.replace(/\/+$/, "");
+
+  const normalizedEndpoint = endpoint.startsWith("/")
+    ? endpoint
+    : `/${endpoint}`;
+
   const response = await fetch(
-    `${API_BASE_URL}${endpoint}`,
+    `${baseUrl}${normalizedEndpoint}`,
     {
       ...options,
-      headers: {
-        "Content-Type": "application/json",
-        ...options.headers,
-      },
+      headers,
     }
   );
 
@@ -38,9 +59,6 @@ export async function apiRequest<T>(
 
 /**
  * Mengambil alamat gambar dari backend.
- *
- * Jika gambar sudah berupa URL lengkap, URL digunakan langsung.
- * Jika hanya berupa path, gambar diarahkan ke server backend.
  */
 export function getImageUrl(
   imagePath: string | null | undefined
@@ -56,20 +74,13 @@ export function getImageUrl(
     return imagePath;
   }
 
-  const baseUrl = API_BASE_URL.replace(/\/api\/?$/, "");
+  const baseUrl = API_BASE_URL.replace(/\/+$/, "");
 
   return `${baseUrl}/${imagePath.replace(/^\/+/, "")}`;
 }
 
 /**
- * Mengambil daftar data dari beberapa bentuk response API.
- *
- * Mendukung:
- * - [...]
- * - { data: [...] }
- * - { success: true, data: [...] }
- * - { products: [...] }
- * - { variants: [...] }
+ * Mengambil daftar data dari berbagai bentuk response API.
  */
 export function extractList<T>(
   response: unknown,
@@ -79,18 +90,18 @@ export function extractList<T>(
     return response as T[];
   }
 
-  if (
-    response &&
-    typeof response === "object"
-  ) {
+  if (response && typeof response === "object") {
     const result = response as Record<string, unknown>;
 
     if (Array.isArray(result.data)) {
       return result.data as T[];
     }
 
-    if (Array.isArray(result[alternativeKey || ""])) {
-      return result[alternativeKey || ""] as T[];
+    if (
+      alternativeKey &&
+      Array.isArray(result[alternativeKey])
+    ) {
+      return result[alternativeKey] as T[];
     }
   }
 
