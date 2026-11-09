@@ -1,21 +1,91 @@
-
 import type { CartItem, CartVariant } from "../types/cart";
 
 const CART_KEY = "soesweet_cart";
 const SELECTED_CART_KEY = "soesweet_selected_cart_items";
 
-// Mengambil data keranjang.
+/**
+ * Mengambil ID pengguna yang sedang login.
+ * Data pengguna berasal dari AuthContext.
+ */
+const getCurrentUserId = (): string | null => {
+  try {
+    const storedUser = localStorage.getItem("soesweet_user");
 
+    if (!storedUser) {
+      return null;
+    }
+
+    const user = JSON.parse(storedUser);
+
+    if (!user?.id_user) {
+      return null;
+    }
+
+    return String(user.id_user);
+  } catch (error) {
+    console.error("Gagal membaca data pengguna:", error);
+    return null;
+  }
+};
+
+/**
+ * Membuat key keranjang berdasarkan ID pengguna.
+ */
+const getCartStorageKey = (): string | null => {
+  const userId = getCurrentUserId();
+
+  if (!userId) {
+    return null;
+  }
+
+  return `${CART_KEY}_user_${userId}`;
+};
+
+/**
+ * Membuat key produk terpilih berdasarkan ID pengguna.
+ */
+const getSelectedCartStorageKey = (): string | null => {
+  const userId = getCurrentUserId();
+
+  if (!userId) {
+    return null;
+  }
+
+  return `${SELECTED_CART_KEY}_user_${userId}`;
+};
+
+/**
+ * Mengirim pemberitahuan ketika keranjang berubah.
+ */
+const dispatchCartUpdated = (): void => {
+  window.dispatchEvent(new Event("cartUpdated"));
+};
+
+/**
+ * Mengambil data keranjang milik pengguna yang sedang login.
+ */
 export const getCart = (): CartItem[] => {
   try {
-    const data = localStorage.getItem(CART_KEY);
+    const storageKey = getCartStorageKey();
 
-    if (!data) return [];
+    // Pengguna yang belum login tidak memiliki akses keranjang.
+    if (!storageKey) {
+      return [];
+    }
+
+    const data = localStorage.getItem(storageKey);
+
+    if (!data) {
+      return [];
+    }
 
     const parsed = JSON.parse(data);
 
-    if (!Array.isArray(parsed)) return [];
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
 
+    // Menyesuaikan format data keranjang.
     const migrated: CartItem[] = parsed.map((item) => ({
       id_product: Number(item.id_product),
       nama_product: item.nama_product,
@@ -23,13 +93,12 @@ export const getCart = (): CartItem[] => {
       jumlah_isi: Number(item.jumlah_isi),
       gambar: item.gambar ?? null,
       quantity: Number(item.quantity),
+
       variants: Array.isArray(item.variants)
-        ? item.variants.map((variant: any) => ({
+        ? item.variants.map((variant: CartVariant) => ({
             id_varian: Number(variant.id_varian),
             nama_varian: variant.nama_varian,
-            jumlah: Number(
-              variant.jumlah ?? variant.quantity
-            ),
+            jumlah: Number(variant.jumlah),
           }))
         : [],
     }));
@@ -41,15 +110,24 @@ export const getCart = (): CartItem[] => {
   }
 };
 
-
-// Menyimpan data keranjang.
+/**
+ * Menyimpan keranjang milik pengguna yang sedang login.
+ */
 export const saveCart = (cart: CartItem[]): void => {
-  localStorage.setItem(CART_KEY, JSON.stringify(cart));
+  const storageKey = getCartStorageKey();
 
-  window.dispatchEvent(new Event("cartUpdated"));
+  if (!storageKey) {
+    throw new Error("Silakan login terlebih dahulu untuk menggunakan keranjang.");
+  }
+
+  localStorage.setItem(storageKey, JSON.stringify(cart));
+
+  dispatchCartUpdated();
 };
 
-// Menghitung jumlah seluruh paket.
+/**
+ * Menghitung jumlah seluruh produk dalam keranjang.
+ */
 export const getCartCount = (): number => {
   return getCart().reduce(
     (total, item) => total + item.quantity,
@@ -57,18 +135,21 @@ export const getCartCount = (): number => {
   );
 };
 
-// Menghitung subtotal seluruh keranjang.
+/**
+ * Menghitung subtotal seluruh produk.
+ */
 export const getCartSubtotal = (
   cart: CartItem[] = getCart()
 ): number => {
   return cart.reduce(
-    (total, item) =>
-      total + Number(item.harga) * item.quantity,
+    (total, item) => total + Number(item.harga) * item.quantity,
     0
   );
 };
 
-// Menghitung jumlah produk berdasarkan varian.
+/**
+ * Menghitung total jumlah varian dalam satu produk.
+ */
 export const getVariantTotal = (
   variants: CartVariant[]
 ): number => {
@@ -78,21 +159,15 @@ export const getVariantTotal = (
   );
 };
 
-// Memvalidasi komposisi varian satu paket.
-export const validateCartItem = (
-  item: CartItem
-): boolean => {
-  if (
-    !Number.isInteger(item.quantity) ||
-    item.quantity < 1
-  ) {
+/**
+ * Memvalidasi data produk dalam keranjang.
+ */
+export const validateCartItem = (item: CartItem): boolean => {
+  if (!Number.isInteger(item.quantity) || item.quantity < 1) {
     return false;
   }
 
-  if (
-    !Array.isArray(item.variants) ||
-    item.variants.length === 0
-  ) {
+  if (!Array.isArray(item.variants) || item.variants.length === 0) {
     return false;
   }
 
@@ -108,8 +183,21 @@ export const validateCartItem = (
   );
 };
 
-// Menambahkan produk baru ke keranjang.
+/**
+ * Menambahkan produk ke keranjang.
+ *
+ * Produk dengan kombinasi varian yang sama akan menambah quantity.
+ * Produk dengan kombinasi varian berbeda akan menjadi item terpisah.
+ */
 export const addToCart = (newItem: CartItem): CartItem[] => {
+  if (!getCurrentUserId()) {
+    throw new Error("Silakan login terlebih dahulu untuk menambahkan produk ke keranjang.");
+  }
+
+  if (!validateCartItem(newItem)) {
+    throw new Error("Data produk atau jumlah varian tidak valid.");
+  }
+
   const cart = getCart();
 
   const existingIndex = cart.findIndex((item) => {
@@ -125,10 +213,7 @@ export const addToCart = (newItem: CartItem): CartItem[] => {
       (a, b) => a.id_varian - b.id_varian
     );
 
-    return (
-      JSON.stringify(oldVariants) ===
-      JSON.stringify(newVariants)
-    );
+    return JSON.stringify(oldVariants) === JSON.stringify(newVariants);
   });
 
   if (existingIndex !== -1) {
@@ -142,7 +227,9 @@ export const addToCart = (newItem: CartItem): CartItem[] => {
   return cart;
 };
 
-// Mengubah jumlah paket.
+/**
+ * Mengubah jumlah produk dalam keranjang.
+ */
 export const updateCartQuantity = (
   id_product: number,
   variants: CartVariant[],
@@ -150,24 +237,24 @@ export const updateCartQuantity = (
 ): CartItem[] => {
   const cart = getCart();
 
-  const index = cart.findIndex(
-    (item) =>
+  const index = cart.findIndex((item) => {
+    const oldVariants = [...item.variants].sort(
+      (a, b) => a.id_varian - b.id_varian
+    );
+
+    const selectedVariants = [...variants].sort(
+      (a, b) => a.id_varian - b.id_varian
+    );
+
+    return (
       item.id_product === id_product &&
-      JSON.stringify(
-        [...item.variants].sort(
-          (a, b) => a.id_varian - b.id_varian
-        )
-      ) ===
-      JSON.stringify(
-        [...variants].sort(
-          (a, b) => a.id_varian - b.id_varian
-        )
-      )
-  );
+      JSON.stringify(oldVariants) === JSON.stringify(selectedVariants)
+    );
+  });
 
-  if (index === -1) return cart;
-
-  if (quantity < 1) return cart;
+  if (index === -1 || !Number.isInteger(quantity) || quantity < 1) {
+    return cart;
+  }
 
   cart[index].quantity = quantity;
 
@@ -176,7 +263,9 @@ export const updateCartQuantity = (
   return cart;
 };
 
-// Menghapus satu produk berdasarkan komposisi variannya.
+/**
+ * Menghapus satu item produk dari keranjang.
+ */
 export const removeCartItem = (
   id_product: number,
   variants: CartVariant[]
@@ -184,20 +273,18 @@ export const removeCartItem = (
   const cart = getCart();
 
   const updatedCart = cart.filter((item) => {
-    const sameProduct =
-      item.id_product === id_product;
+    const sameProduct = item.id_product === id_product;
+
+    const oldVariants = [...item.variants].sort(
+      (a, b) => a.id_varian - b.id_varian
+    );
+
+    const selectedVariants = [...variants].sort(
+      (a, b) => a.id_varian - b.id_varian
+    );
 
     const sameVariants =
-      JSON.stringify(
-        [...item.variants].sort(
-          (a, b) => a.id_varian - b.id_varian
-        )
-      ) ===
-      JSON.stringify(
-        [...variants].sort(
-          (a, b) => a.id_varian - b.id_varian
-        )
-      );
+      JSON.stringify(oldVariants) === JSON.stringify(selectedVariants);
 
     return !(sameProduct && sameVariants);
   });
@@ -207,59 +294,104 @@ export const removeCartItem = (
   return updatedCart;
 };
 
-// Mengosongkan seluruh keranjang.
+/**
+ * Mengosongkan keranjang pengguna yang sedang login.
+ */
 export const clearCart = (): void => {
-  saveCart([]);
-  localStorage.removeItem(SELECTED_CART_KEY);
+  const storageKey = getCartStorageKey();
+  const selectedStorageKey = getSelectedCartStorageKey();
+
+  if (!storageKey) {
+    return;
+  }
+
+  localStorage.removeItem(storageKey);
+
+  if (selectedStorageKey) {
+    localStorage.removeItem(selectedStorageKey);
+  }
+
+  dispatchCartUpdated();
 };
 
-// Menyimpan item yang dipilih untuk checkout.
+/**
+ * Menyimpan produk yang dipilih untuk checkout.
+ */
 export const saveSelectedCartItems = (
   items: CartItem[]
 ): void => {
-  localStorage.setItem(
-    SELECTED_CART_KEY,
-    JSON.stringify(items)
-  );
+  const storageKey = getSelectedCartStorageKey();
+
+  if (!storageKey) {
+    throw new Error("Silakan login terlebih dahulu.");
+  }
+
+  localStorage.setItem(storageKey, JSON.stringify(items));
 };
 
-// Mengambil item yang dipilih untuk checkout.
+/**
+ * Mengambil produk yang dipilih untuk checkout.
+ */
 export const getSelectedCartItems = (): CartItem[] => {
   try {
-    const data = localStorage.getItem(SELECTED_CART_KEY);
+    const storageKey = getSelectedCartStorageKey();
 
-    return data ? JSON.parse(data) : [];
-  } catch {
+    if (!storageKey) {
+      return [];
+    }
+
+    const data = localStorage.getItem(storageKey);
+
+    if (!data) {
+      return [];
+    }
+
+    const parsed = JSON.parse(data);
+
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (error) {
+    console.error("Gagal membaca produk pilihan:", error);
     return [];
   }
 };
 
-// Menghapus hanya item yang berhasil di-checkout.
+/**
+ * Menghapus produk yang sudah berhasil diproses dari keranjang.
+ * Produk yang tidak dipilih tetap berada di keranjang.
+ */
 export const removeSelectedCartItems = (
   selectedItems: CartItem[]
 ): CartItem[] => {
   const cart = getCart();
 
   const remainingCart = cart.filter((item) => {
-    return !selectedItems.some(
-      (selected) =>
-        selected.id_product === item.id_product &&
-        JSON.stringify(
-          [...selected.variants].sort(
-            (a, b) => a.id_varian - b.id_varian
-          )
-        ) ===
-        JSON.stringify(
-          [...item.variants].sort(
-            (a, b) => a.id_varian - b.id_varian
-          )
-        )
-    );
+    return !selectedItems.some((selected) => {
+      const sameProduct =
+        selected.id_product === item.id_product;
+
+      const selectedVariants = [...selected.variants].sort(
+        (a, b) => a.id_varian - b.id_varian
+      );
+
+      const itemVariants = [...item.variants].sort(
+        (a, b) => a.id_varian - b.id_varian
+      );
+
+      const sameVariants =
+        JSON.stringify(selectedVariants) ===
+        JSON.stringify(itemVariants);
+
+      return sameProduct && sameVariants;
+    });
   });
 
   saveCart(remainingCart);
 
-  localStorage.removeItem(SELECTED_CART_KEY);
+  const selectedStorageKey = getSelectedCartStorageKey();
+
+  if (selectedStorageKey) {
+    localStorage.removeItem(selectedStorageKey);
+  }
 
   return remainingCart;
 };
