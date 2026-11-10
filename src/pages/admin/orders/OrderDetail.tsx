@@ -144,6 +144,8 @@ const getPaymentStatusColor = (status?: string) => {
     }
 };
 
+type ConfirmationAction = "status" | "verifyPayment";
+
 export default function OrderDetail() {
     const { id_order } = useParams();
 
@@ -156,6 +158,8 @@ export default function OrderDetail() {
     const [success, setSuccess] = useState("");
 
     const [actionLoading, setActionLoading] = useState(false);
+    const [confirmationAction, setConfirmationAction] =
+        useState<ConfirmationAction | null>(null);
 
     const [selectedStatus, setSelectedStatus] =
         useState<OrderStatus | "">("");
@@ -194,7 +198,7 @@ export default function OrderDetail() {
         fetchOrder();
     }, [fetchOrder]);
 
-    const handleUpdateStatus = async () => {
+    const handleUpdateStatus = () => {
         if (!order || !selectedStatus) return;
 
         const currentStatus = getStatus(order);
@@ -207,12 +211,12 @@ export default function OrderDetail() {
             return;
         }
 
-        const confirmChange = window.confirm(
-            `Ubah status pesanan #${order.id_order} menjadi "${statusLabels[selectedStatus]}"?`
-        );
+        setError("");
+        setConfirmationAction("status");
+    };
 
-        if (!confirmChange) return;
-
+    const confirmUpdateStatus = async () => {
+        if (!order || !selectedStatus) return;
         try {
             setActionLoading(true);
             setError("");
@@ -224,6 +228,7 @@ export default function OrderDetail() {
             );
 
             setSuccess("Status pesanan berhasil diperbarui.");
+            setConfirmationAction(null);
 
             setSelectedStatus("");
 
@@ -239,15 +244,15 @@ export default function OrderDetail() {
         }
     };
 
-    const handleVerifyPayment = async () => {
+    const handleVerifyPayment = () => {
         if (!order) return;
 
-        const confirmed = window.confirm(
-            `Verifikasi pembayaran untuk pesanan #${order.id_order}?`
-        );
+        setError("");
+        setConfirmationAction("verifyPayment");
+    };
 
-        if (!confirmed) return;
-
+    const confirmVerifyPayment = async () => {
+        if (!order) return;
         try {
             setActionLoading(true);
             setError("");
@@ -261,6 +266,7 @@ export default function OrderDetail() {
             setSuccess(
                 "Pembayaran berhasil diverifikasi. Pesanan masuk ke tahap diproses."
             );
+            setConfirmationAction(null);
 
             await fetchOrder();
         } catch (err) {
@@ -1107,6 +1113,117 @@ export default function OrderDetail() {
             </div>
 
             {/* REJECT PAYMENT MODAL */}
+
+            {confirmationAction && (
+                <div
+                    className="fixed inset-0 z-[110] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm"
+                    onClick={(event) => {
+                        if (
+                            event.target === event.currentTarget &&
+                            !actionLoading
+                        ) {
+                            setConfirmationAction(null);
+                            setError("");
+                        }
+                    }}
+                >
+                    <div
+                        role="alertdialog"
+                        aria-modal="true"
+                        aria-labelledby="order-confirmation-title"
+                        aria-describedby="order-confirmation-description"
+                        className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl"
+                    >
+                        <div
+                            className={`mx-auto flex h-14 w-14 items-center justify-center rounded-2xl ${
+                                confirmationAction === "verifyPayment"
+                                    ? "bg-green-50 text-green-600"
+                                    : selectedStatus === "dibatalkan"
+                                      ? "bg-red-50 text-red-500"
+                                      : "bg-[#FFF0F3] text-[#C9184A]"
+                            }`}
+                        >
+                            {confirmationAction === "verifyPayment" ? (
+                                <CheckCircle size={28} />
+                            ) : selectedStatus === "dibatalkan" ? (
+                                <XCircle size={28} />
+                            ) : (
+                                <ClipboardList size={28} />
+                            )}
+                        </div>
+
+                        <h2
+                            id="order-confirmation-title"
+                            className="mt-5 text-center text-xl font-bold text-[#590D22]"
+                        >
+                            {confirmationAction === "verifyPayment"
+                                ? "Verifikasi Pembayaran?"
+                                : selectedStatus === "dibatalkan"
+                                  ? "Batalkan Pesanan?"
+                                  : "Ubah Status Pesanan?"}
+                        </h2>
+
+                        <p
+                            id="order-confirmation-description"
+                            className="mt-2 text-center text-sm leading-relaxed text-gray-500"
+                        >
+                            {confirmationAction === "verifyPayment"
+                                ? `Pastikan bukti pembayaran pesanan #${order.id_order} sudah sesuai. Status pembayaran akan diubah menjadi terverifikasi dan pesanan masuk ke tahap diproses.`
+                                : `Status pesanan #${order.id_order} akan diubah menjadi "${statusLabels[selectedStatus as OrderStatus]}".`}
+                        </p>
+
+                        {error && (
+                            <div className="mt-4 flex items-start gap-2 rounded-xl border border-red-100 bg-red-50 p-3 text-sm text-red-600">
+                                <AlertCircle size={18} className="mt-0.5 shrink-0" />
+                                <p>{error}</p>
+                            </div>
+                        )}
+
+                        <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setConfirmationAction(null);
+                                    setError("");
+                                }}
+                                disabled={actionLoading}
+                                className="flex-1 rounded-xl border border-pink-100 py-3 text-sm font-bold text-[#590D22] transition hover:bg-pink-50 disabled:opacity-50"
+                            >
+                                Batal
+                            </button>
+                            <button
+                                type="button"
+                                onClick={
+                                    confirmationAction === "verifyPayment"
+                                        ? confirmVerifyPayment
+                                        : confirmUpdateStatus
+                                }
+                                disabled={actionLoading}
+                                className={`flex flex-1 items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold text-white transition disabled:cursor-not-allowed disabled:opacity-50 ${
+                                    confirmationAction === "verifyPayment"
+                                        ? "bg-green-600 hover:bg-green-700"
+                                        : selectedStatus === "dibatalkan"
+                                          ? "bg-red-500 hover:bg-red-600"
+                                          : "bg-[#C9184A] hover:bg-[#A4133C]"
+                                }`}
+                            >
+                                {actionLoading ? (
+                                    <LoaderCircle size={17} className="animate-spin" />
+                                ) : confirmationAction === "verifyPayment" ? (
+                                    <Check size={17} />
+                                ) : (
+                                    <ClipboardList size={17} />
+                                )}
+                                {actionLoading
+                                    ? "Memproses..."
+                                    : confirmationAction === "verifyPayment"
+                                      ? "Ya, Verifikasi"
+                                      : "Ya, Ubah Status"}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {showRejectModal && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
