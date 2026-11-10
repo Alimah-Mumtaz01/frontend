@@ -256,6 +256,9 @@ export default function MyOrders() {
     const [selectedReview, setSelectedReview] =
         useState<Review | null>(null);
 
+    const [reviewToDelete, setReviewToDelete] =
+        useState<Review | null>(null);
+
     const [reviewOrder, setReviewOrder] =
         useState<CustomerOrder | null>(null);
 
@@ -734,12 +737,15 @@ export default function MyOrders() {
         }
     };
 
-    const handleDeleteReview = async (review: Review) => {
-        const confirmed = window.confirm(
-            `Apakah kamu yakin ingin menghapus ulasan untuk pesanan #${review.id_order}?`
-        );
+    const handleDeleteReview = (review: Review) => {
+        setReviewError("");
+        setReviewToDelete(review);
+    };
 
-        if (!confirmed) return;
+    const confirmDeleteReview = async () => {
+        if (!reviewToDelete) return;
+
+        const review = reviewToDelete;
 
         try {
             setDeletingReview(true);
@@ -753,6 +759,7 @@ export default function MyOrders() {
 
             setReviewModalMode(null);
             setSelectedReview(null);
+            setReviewToDelete(null);
 
             await Promise.all([
                 fetchOrders(true),
@@ -2272,6 +2279,79 @@ export default function MyOrders() {
 
                     </div>
 
+                </div>
+            )}
+
+            {reviewToDelete && (
+                <div
+                    className="fixed inset-0 z-[120] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm"
+                    onClick={(event) => {
+                        if (event.target === event.currentTarget && !deletingReview) {
+                            setReviewToDelete(null);
+                        }
+                    }}
+                >
+                    <div
+                        role="alertdialog"
+                        aria-modal="true"
+                        aria-labelledby="delete-review-title"
+                        aria-describedby="delete-review-description"
+                        className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl sm:p-7"
+                    >
+                        <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-red-50 text-red-600">
+                            <Trash2 size={26} />
+                        </div>
+
+                        <h2
+                            id="delete-review-title"
+                            className="mt-5 text-xl font-bold text-[#590D22]"
+                        >
+                            Hapus ulasan?
+                        </h2>
+                        <p
+                            id="delete-review-description"
+                            className="mt-2 text-sm leading-relaxed text-[#98717E]"
+                        >
+                            Ulasan untuk pesanan #{reviewToDelete.id_order} akan dihapus
+                            secara permanen dan tidak dapat dikembalikan.
+                        </p>
+
+                        {reviewError && (
+                            <div className="mt-4 flex items-start gap-2 rounded-xl border border-red-100 bg-red-50 p-3 text-sm text-red-600">
+                                <AlertCircle size={18} className="mt-0.5 shrink-0" />
+                                <p>{reviewError}</p>
+                            </div>
+                        )}
+
+                        <div className="mt-7 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+                            <button
+                                type="button"
+                                onClick={() => setReviewToDelete(null)}
+                                disabled={deletingReview}
+                                className="rounded-xl border border-pink-100 px-5 py-3 text-sm font-bold text-[#590D22] transition hover:bg-pink-50 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                                Batal
+                            </button>
+                            <button
+                                type="button"
+                                onClick={confirmDeleteReview}
+                                disabled={deletingReview}
+                                className="inline-flex items-center justify-center gap-2 rounded-xl bg-red-600 px-5 py-3 text-sm font-bold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                                {deletingReview ? (
+                                    <>
+                                        <LoaderCircle size={17} className="animate-spin" />
+                                        Menghapus...
+                                    </>
+                                ) : (
+                                    <>
+                                        <Trash2 size={17} />
+                                        Ya, Hapus
+                                    </>
+                                )}
+                            </button>
+                        </div>
+                    </div>
                 </div>
             )}
 
