@@ -238,7 +238,7 @@ Validasi autentikasi dan otorisasi tetap dilakukan oleh backend sebagai bagian d
 
 Dokumentasi teknis frontend SoeSweet disimpan di dalam folder `docs`.
 
-Folder tersebut berisi penjelasan mengenai halaman customer, halaman admin, komponen, integrasi API, pengelolaan data, pengujian, dan deployment.
+Folder tersebut berisi penjelasan mengenai halaman customer, halaman admin, komponen, integrasi API, dan pengelolaan data.
 
 Setiap fitur didokumentasikan secara terpisah agar lebih mudah dipahami, diperbarui, dan dikembangkan.
 
