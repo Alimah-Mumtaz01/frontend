@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link } from "react-router";
+import { Link, useNavigate } from "react-router";
 
 import {
     Search,
@@ -7,6 +7,7 @@ import {
     LoaderCircle,
     AlertCircle,
     ShoppingBag,
+    ShoppingCart,
     Package,
     CalendarDays,
     Truck,
@@ -29,10 +30,16 @@ import {
 } from "lucide-react";
 
 import { getImageUrl } from "../../../services/api";
+import type { CartItem } from "../../../types/cart";
+import {
+    saveSelectedCartItems,
+    validateCartItem,
+} from "../../../services/cartService";
 
 import {
     getMyOrders,
     uploadMyOrderPayment,
+    updateMyOrderShipping,
     type CustomerOrder,
     type CustomerOrderStatus,
 } from "../../../services/customerOrderService";
@@ -234,6 +241,7 @@ function ReviewImages({
 
 export default function MyOrders() {
 
+    const navigate = useNavigate();
     const [orders, setOrders] = useState<CustomerOrder[]>([]);
     const [activeTab, setActiveTab] = useState<OrderTab>("semua");
     const [search, setSearch] = useState("");
@@ -277,6 +285,14 @@ export default function MyOrders() {
     const [selectedOrder, setSelectedOrder] =
         useState<CustomerOrder | null>(null);
 
+    const [selectedShippingOrder, setSelectedShippingOrder] =
+        useState<CustomerOrder | null>(null);
+    const [shippingType, setShippingType] =
+        useState<"pickup" | "delivery">("pickup");
+    const [shippingAddress, setShippingAddress] = useState("");
+    const [shippingError, setShippingError] = useState("");
+    const [updatingShipping, setUpdatingShipping] = useState(false);
+
     const [paymentMethod, setPaymentMethod] = useState<
         "transfer_bank" | "e-wallet"
     >("transfer_bank");
@@ -293,6 +309,10 @@ export default function MyOrders() {
 
     const [uploading, setUploading] = useState(false);
     const [successMessage, setSuccessMessage] = useState("");
+    const [repurchaseError, setRepurchaseError] = useState<{
+        orderId: number;
+        message: string;
+    } | null>(null);
 
     const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -382,6 +402,137 @@ export default function MyOrders() {
 
     const getTabCount = (tab: OrderTab) => {
         return orders.filter((order) => matchesTab(order, tab)).length;
+    };
+
+    const handleBuyAgain = (order: CustomerOrder) => {
+        try {
+            setRepurchaseError(null);
+
+            const items = order.orderItems || [];
+            if (items.length === 0) {
+                throw new Error("Detail produk pada pesanan ini tidak tersedia.");
+            }
+
+            const cartItems: CartItem[] = items.map((item) => {
+                if (
+                    !Number.isInteger(item.quantity) ||
+                    item.quantity < 1 ||
+                    !item.variants ||
+                    item.variants.length === 0
+                ) {
+                    throw new Error("Detail varian pada pesanan ini tidak lengkap.");
+                }
+
+                const variants = item.variants.map((variant) => {
+                    if (variant.jumlah % item.quantity !== 0) {
+                        throw new Error(
+                            "Komposisi varian pada pesanan ini tidak dapat digunakan untuk beli lagi."
+                        );
+                    }
+
+                    return {
+                        id_varian: variant.id_varian,
+                        nama_varian:
+                            variant.varian?.nama_varian ||
+                            `Varian #${variant.id_varian}`,
+                        jumlah: variant.jumlah / item.quantity,
+                    };
+                });
+
+                const jumlahIsi =
+                    item.product?.jumlah_isi ??
+                    variants.reduce((total, variant) => total + variant.jumlah, 0);
+
+                const cartItem: CartItem = {
+                    id_product: item.id_product,
+                    nama_product:
+                        item.product?.nama_product ||
+                        `Produk #${item.id_product}`,
+                    harga: Number(item.harga_satuan),
+                    jumlah_isi: jumlahIsi,
+                    gambar: item.product?.gambar ?? null,
+                    quantity: item.quantity,
+                    variants,
+                };
+
+                if (!validateCartItem(cartItem)) {
+                    throw new Error("Detail produk pada pesanan ini tidak valid.");
+                }
+
+                return cartItem;
+            });
+
+            saveSelectedCartItems(cartItems, false);
+            navigate("/checkout");
+        } catch (err) {
+            setRepurchaseError({
+                orderId: order.id_order,
+                message:
+                    err instanceof Error
+                        ? err.message
+                        : "Gagal menyiapkan pesanan untuk dibeli lagi.",
+            });
+        }
+    };
+
+    const openShippingModal = (order: CustomerOrder) => {
+        setSelectedShippingOrder(order);
+        setShippingType(order.tipe_pengiriman);
+        setShippingAddress(order.alamat_pengiriman || "");
+        setShippingError("");
+    };
+
+    const closeShippingModal = () => {
+        if (updatingShipping) return;
+
+        setSelectedShippingOrder(null);
+        setShippingError("");
+    };
+
+    const handleUpdateShipping = async () => {
+        if (!selectedShippingOrder) return;
+
+        if (
+            shippingType === "delivery" &&
+            !shippingAddress.trim()
+        ) {
+            setShippingError("Alamat pengiriman wajib diisi untuk delivery.");
+            return;
+        }
+
+        try {
+            setUpdatingShipping(true);
+            setShippingError("");
+
+            const updatedShipping = await updateMyOrderShipping(
+                selectedShippingOrder.id_order,
+                shippingType,
+                shippingType === "delivery"
+                    ? shippingAddress.trim()
+                    : null
+            );
+
+            setOrders((previous) =>
+                previous.map((order) =>
+                    order.id_order === updatedShipping.id_order
+                        ? { ...order, ...updatedShipping }
+                        : order
+                )
+            );
+
+            setSelectedShippingOrder(null);
+            setSuccessMessage(
+                `Metode pengiriman pesanan #${updatedShipping.id_order} berhasil diperbarui. Total baru ${formatRupiah(updatedShipping.total_harga)}.`
+            );
+        } catch (err) {
+            setShippingError(
+                err instanceof Error
+                    ? err.message
+                    : "Gagal memperbarui metode pengiriman."
+            );
+        } finally {
+            setUpdatingShipping(false);
+        }
     };
 
     const handleFileChange = (
@@ -1189,6 +1340,17 @@ export default function MyOrders() {
                                                             </button>
                                                         )}
 
+                                                        {status === "menunggu_konfirmasi" &&
+                                                            Number(order.subtotal) >= 50000 && (
+                                                                <button
+                                                                    onClick={() => openShippingModal(order)}
+                                                                    className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#C9184A] bg-white px-5 py-3 text-sm font-bold text-[#C9184A] transition hover:bg-[#FFF0F3]"
+                                                                >
+                                                                    <Truck size={17} />
+                                                                    Ubah Pengiriman
+                                                                </button>
+                                                            )}
+
                                                         {/* REVIEW BUTTON */}
 
                                                         {status === "selesai" && (
@@ -1216,9 +1378,28 @@ export default function MyOrders() {
                                                             )
                                                         )}
 
+                                                        {status === "selesai" && (
+                                                            <button
+                                                                onClick={() => handleBuyAgain(order)}
+                                                                className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#C9184A] bg-white px-5 py-3 text-sm font-bold text-[#C9184A] transition hover:bg-[#FFF0F3]"
+                                                            >
+                                                                <ShoppingCart size={17} />
+                                                                Beli Lagi
+                                                            </button>
+                                                        )}
+
                                                     </div>
 
                                                 </div>
+
+                                                {repurchaseError?.orderId === order.id_order && (
+                                                    <p
+                                                        role="alert"
+                                                        className="mt-3 rounded-xl border border-red-100 bg-red-50 p-3 text-sm text-red-700"
+                                                    >
+                                                        {repurchaseError.message}
+                                                    </p>
+                                                )}
 
                                                 {/* PAYMENT STATUS */}
 
@@ -1956,6 +2137,144 @@ export default function MyOrders() {
 
                     </div>
 
+                </div>
+            )}
+
+            {selectedShippingOrder && (
+                <div className="fixed inset-0 z-[105] flex items-center justify-center overflow-y-auto bg-black/50 p-4 backdrop-blur-sm">
+                    <section
+                        role="dialog"
+                        aria-modal="true"
+                        aria-labelledby="shipping-modal-title"
+                        className="my-auto w-full max-w-lg rounded-3xl bg-white p-5 shadow-2xl sm:p-7"
+                    >
+                        <div className="flex items-start justify-between gap-4">
+                            <div>
+                                <p className="text-xs font-bold uppercase tracking-wider text-[#C9184A]">
+                                    Pengiriman SoeSweet
+                                </p>
+                                <h2
+                                    id="shipping-modal-title"
+                                    className="mt-1 text-xl font-bold text-[#590D22]"
+                                >
+                                    Ubah Metode Pengiriman
+                                </h2>
+                                <p className="mt-1 text-sm text-[#98717E]">
+                                    Pesanan #{selectedShippingOrder.id_order}
+                                </p>
+                            </div>
+
+                            <button
+                                type="button"
+                                onClick={closeShippingModal}
+                                disabled={updatingShipping}
+                                aria-label="Tutup"
+                                className="rounded-xl p-2 text-gray-400 transition hover:bg-pink-50 hover:text-[#C9184A] disabled:opacity-50"
+                            >
+                                <X size={21} />
+                            </button>
+                        </div>
+
+                        <div className="mt-5 rounded-2xl bg-[#FFF0F3] p-4">
+                            <p className="text-xs text-[#98717E]">Subtotal pesanan</p>
+                            <p className="mt-1 text-xl font-bold text-[#C9184A]">
+                                {formatRupiah(selectedShippingOrder.subtotal)}
+                            </p>
+                        </div>
+
+                        <fieldset className="mt-5">
+                            <legend className="mb-2 text-sm font-bold text-[#590D22]">
+                                Pilih metode pengiriman
+                            </legend>
+                            <div className="grid grid-cols-2 gap-3">
+                                {(["pickup", "delivery"] as const).map((type) => (
+                                    <button
+                                        key={type}
+                                        type="button"
+                                        onClick={() => {
+                                            setShippingType(type);
+                                            setShippingError("");
+                                        }}
+                                        aria-pressed={shippingType === type}
+                                        className={`flex items-center justify-center gap-2 rounded-xl border px-4 py-3 text-sm font-bold transition ${
+                                            shippingType === type
+                                                ? "border-[#C9184A] bg-[#FFF0F3] text-[#C9184A]"
+                                                : "border-pink-100 text-[#98717E] hover:bg-pink-50"
+                                        }`}
+                                    >
+                                        {type === "pickup" ? (
+                                            <Store size={17} />
+                                        ) : (
+                                            <Truck size={17} />
+                                        )}
+                                        {type === "pickup" ? "Pickup" : "Delivery"}
+                                    </button>
+                                ))}
+                            </div>
+                        </fieldset>
+
+                        {shippingType === "delivery" && (
+                            <label className="mt-5 block">
+                                <span className="mb-2 block text-sm font-bold text-[#590D22]">
+                                    Alamat pengiriman
+                                </span>
+                                <textarea
+                                    value={shippingAddress}
+                                    onChange={(event) => {
+                                        setShippingAddress(event.target.value);
+                                        setShippingError("");
+                                    }}
+                                    maxLength={500}
+                                    rows={3}
+                                    placeholder="Masukkan alamat lengkap untuk pengiriman"
+                                    className="w-full rounded-xl border border-pink-100 px-4 py-3 text-sm text-[#590D22] outline-none transition placeholder:text-pink-300 focus:border-[#C9184A] focus:ring-2 focus:ring-pink-100"
+                                />
+                            </label>
+                        )}
+
+                        <p className="mt-3 text-xs leading-relaxed text-[#98717E]">
+                            Ongkir dan total terbaru akan dihitung otomatis sesuai metode yang dipilih. Delivery memerlukan subtotal minimal Rp50.000.
+                        </p>
+
+                        {shippingError && (
+                            <p
+                                role="alert"
+                                className="mt-3 rounded-xl border border-red-100 bg-red-50 p-3 text-sm text-red-700"
+                            >
+                                {shippingError}
+                            </p>
+                        )}
+
+                        <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row">
+                            <button
+                                type="button"
+                                onClick={closeShippingModal}
+                                disabled={updatingShipping}
+                                className="flex-1 rounded-xl border border-pink-100 py-3 text-sm font-bold text-[#590D22] transition hover:bg-pink-50 disabled:opacity-50"
+                            >
+                                Batal
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleUpdateShipping}
+                                disabled={
+                                    updatingShipping ||
+                                    (shippingType === "delivery" &&
+                                        !shippingAddress.trim())
+                                }
+                                className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#C9184A] py-3 text-sm font-bold text-white shadow-md shadow-pink-100 transition hover:bg-[#A4133C] disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                                {updatingShipping ? (
+                                    <>
+                                        <LoaderCircle size={18} className="animate-spin" />
+                                        Menyimpan...
+                                    </>
+                                ) : (
+                                    "Simpan Pengiriman"
+                                )}
+                            </button>
+                        </div>
+                    </section>
                 </div>
             )}
 

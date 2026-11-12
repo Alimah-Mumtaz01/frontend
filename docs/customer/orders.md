@@ -33,6 +33,8 @@ Komponen yang terdapat pada halaman Riwayat Pesanan meliputi:
 - Melihat status pemeriksaan pembayaran.
 - Melihat informasi rekening bank dan akun e-wallet SoeSweet.
 - Melihat informasi pesanan yang siap diambil atau sedang dikirim.
+- Membeli lagi pesanan yang sudah selesai dengan produk, varian, dan jumlah yang sama.
+- Mengubah metode pengiriman pada pesanan yang menunggu konfirmasi dan subtotalnya minimal Rp50.000.
 
 ## 4. Integrasi API
 
@@ -77,6 +79,21 @@ Ukuran maksimal file adalah 5 MB.
 8. Backend menyimpan bukti pembayaran dan memperbarui status pesanan.
 9. Customer dapat melihat perkembangan pemeriksaan pembayaran.
 
+### Membeli Lagi Pesanan Selesai
+
+1. Customer memilih tombol **Beli Lagi** pada pesanan berstatus selesai.
+2. Frontend menyiapkan kembali produk, komposisi varian per paket, dan jumlah paket dari pesanan tersebut.
+3. Customer diarahkan ke checkout untuk memeriksa ketersediaan dan membuat pesanan baru.
+4. Isi keranjang yang sudah ada tidak digabungkan atau dihapus oleh proses beli lagi.
+
+### Mengubah Metode Pengiriman
+
+1. Customer memilih **Ubah Pengiriman** pada pesanan berstatus menunggu konfirmasi dengan subtotal minimal Rp50.000.
+2. Customer memilih pickup atau delivery.
+3. Jika memilih delivery, customer memasukkan alamat pengiriman.
+4. Backend memvalidasi pesanan dan menghitung ulang ongkir serta total pembayaran.
+5. Setelah berhasil, halaman menampilkan metode pengiriman dan total terbaru.
+
 ## 6. Status Pesanan
 
 Status pesanan yang digunakan dalam aplikasi SoeSweet meliputi:
@@ -103,6 +120,8 @@ Status pesanan yang digunakan dalam aplikasi SoeSweet meliputi:
 - Bukti pembayaran yang telah dikirim akan melalui pemeriksaan admin.
 - Status pesanan ditampilkan berdasarkan data terbaru dari backend.
 - Fitur yang tersedia pada setiap pesanan mengikuti status pesanan tersebut.
+- Metode pengiriman hanya dapat diubah saat pesanan menunggu konfirmasi.
+- Delivery mensyaratkan subtotal minimal Rp50.000 dan alamat pengiriman; ongkir dihitung oleh backend.
 
 ## 8. Pengelolaan Data Pembayaran
 

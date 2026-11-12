@@ -2,6 +2,8 @@ import type { CartItem, CartVariant } from "../types/cart";
 
 const CART_KEY = "soesweet_cart";
 const SELECTED_CART_KEY = "soesweet_selected_cart_items";
+const REMOVE_SELECTED_FROM_CART_KEY =
+  "soesweet_remove_selected_from_cart";
 
 /**
  * Mengambil ID pengguna yang sedang login.
@@ -52,6 +54,16 @@ const getSelectedCartStorageKey = (): string | null => {
   }
 
   return `${SELECTED_CART_KEY}_user_${userId}`;
+};
+
+const getRemoveSelectedFromCartStorageKey = (): string | null => {
+  const userId = getCurrentUserId();
+
+  if (!userId) {
+    return null;
+  }
+
+  return `${REMOVE_SELECTED_FROM_CART_KEY}_user_${userId}`;
 };
 
 /**
@@ -300,6 +312,8 @@ export const removeCartItem = (
 export const clearCart = (): void => {
   const storageKey = getCartStorageKey();
   const selectedStorageKey = getSelectedCartStorageKey();
+  const removeSelectedStorageKey =
+    getRemoveSelectedFromCartStorageKey();
 
   if (!storageKey) {
     return;
@@ -311,6 +325,10 @@ export const clearCart = (): void => {
     localStorage.removeItem(selectedStorageKey);
   }
 
+  if (removeSelectedStorageKey) {
+    localStorage.removeItem(removeSelectedStorageKey);
+  }
+
   dispatchCartUpdated();
 };
 
@@ -318,15 +336,22 @@ export const clearCart = (): void => {
  * Menyimpan produk yang dipilih untuk checkout.
  */
 export const saveSelectedCartItems = (
-  items: CartItem[]
+  items: CartItem[],
+  removeFromCart = true
 ): void => {
   const storageKey = getSelectedCartStorageKey();
+  const removeSelectedStorageKey =
+    getRemoveSelectedFromCartStorageKey();
 
-  if (!storageKey) {
+  if (!storageKey || !removeSelectedStorageKey) {
     throw new Error("Silakan login terlebih dahulu.");
   }
 
   localStorage.setItem(storageKey, JSON.stringify(items));
+  localStorage.setItem(
+    removeSelectedStorageKey,
+    String(removeFromCart)
+  );
 };
 
 /**
@@ -362,6 +387,25 @@ export const getSelectedCartItems = (): CartItem[] => {
 export const removeSelectedCartItems = (
   selectedItems: CartItem[]
 ): CartItem[] => {
+  const selectedStorageKey = getSelectedCartStorageKey();
+  const removeSelectedStorageKey =
+    getRemoveSelectedFromCartStorageKey();
+  const removeFromCart =
+    !removeSelectedStorageKey ||
+    localStorage.getItem(removeSelectedStorageKey) !== "false";
+
+  if (!removeFromCart) {
+    if (selectedStorageKey) {
+      localStorage.removeItem(selectedStorageKey);
+    }
+
+    if (removeSelectedStorageKey) {
+      localStorage.removeItem(removeSelectedStorageKey);
+    }
+
+    return getCart();
+  }
+
   const cart = getCart();
 
   const remainingCart = cart.filter((item) => {
@@ -387,10 +431,12 @@ export const removeSelectedCartItems = (
 
   saveCart(remainingCart);
 
-  const selectedStorageKey = getSelectedCartStorageKey();
-
   if (selectedStorageKey) {
     localStorage.removeItem(selectedStorageKey);
+  }
+
+  if (removeSelectedStorageKey) {
+    localStorage.removeItem(removeSelectedStorageKey);
   }
 
   return remainingCart;

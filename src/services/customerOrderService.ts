@@ -69,6 +69,15 @@ export interface CustomerOrder {
     review?: CustomerOrderReview | null;
 }
 
+export interface CustomerOrderShippingUpdate {
+    id_order: number;
+    tipe_pengiriman: "pickup" | "delivery";
+    alamat_pengiriman: string | null;
+    subtotal: number;
+    ongkir: number;
+    total_harga: number;
+}
+
 interface ApiResponse<T> {
     success: boolean;
     message: string;
@@ -89,6 +98,34 @@ export const getMyOrders = async (): Promise<CustomerOrder[]> => {
     if (!response.success || !Array.isArray(response.data)) {
         throw new Error(
             response.message || "Gagal mengambil daftar pesanan."
+        );
+    }
+
+    return response.data;
+};
+
+/**
+ * Memperbarui metode dan alamat pengiriman pesanan yang menunggu konfirmasi.
+ */
+export const updateMyOrderShipping = async (
+    id_order: number,
+    tipe_pengiriman: "pickup" | "delivery",
+    alamat_pengiriman: string | null
+): Promise<CustomerOrderShippingUpdate> => {
+    const response = await apiRequest<ApiResponse<CustomerOrderShippingUpdate>>(
+        `/orders/my-orders/${id_order}/shipping`,
+        {
+            method: "PUT",
+            body: JSON.stringify({
+                tipe_pengiriman,
+                alamat_pengiriman,
+            }),
+        }
+    );
+
+    if (!response.success || !response.data) {
+        throw new Error(
+            response.message || "Gagal memperbarui metode pengiriman."
         );
     }
 
