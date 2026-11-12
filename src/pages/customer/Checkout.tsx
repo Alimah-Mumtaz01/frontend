@@ -383,10 +383,10 @@ export default function Checkout() {
 
           <button
             type="button"
-            onClick={() => navigate("/")}
+            onClick={() => navigate("/my-orders")}
             className="mt-7 w-full rounded-xl bg-[#C9184A] px-5 py-4 text-sm font-extrabold text-white transition hover:bg-[#A4133C]"
           >
-            Kembali ke Beranda
+            Lihat Pesanan Saya
           </button>
 
         </section>
