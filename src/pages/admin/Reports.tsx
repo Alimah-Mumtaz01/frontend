@@ -150,9 +150,9 @@ function SalesChart({
   return (
     <div className="mt-5">
       {data.length > 0 ? (
-        <div className="w-full overflow-x-auto pb-2">
-          <div className="min-w-[500px]">
-            <div className="relative h-[230px]">
+        <div className="w-full min-w-0 overflow-hidden pb-2">
+          <div className="w-full min-w-0">
+            <div className="relative h-[230px] w-full">
 
               {/* GRID */}
               {gridValues.map((value) => (
@@ -172,7 +172,7 @@ function SalesChart({
               ))}
 
               {/* BARS */}
-              <div className="absolute top-0 right-0 bottom-0 left-[52px] flex items-end justify-around gap-3">
+              <div className="absolute top-0 right-0 bottom-0 left-[52px] flex items-end justify-around gap-1 sm:gap-3">
                 {data.map((item, index) => {
                   const percentage =
                     (item.total_penjualan / maxValue) * 100;
