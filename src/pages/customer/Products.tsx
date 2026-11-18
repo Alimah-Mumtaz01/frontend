@@ -35,7 +35,6 @@ type FilterType = "Semua" | "Paket" | "Varian Rasa";
 const filters: FilterType[] = [
   "Semua",
   "Paket",
-  "Varian Rasa",
 ];
 
 const formatRupiah = (value: number) => {
@@ -810,7 +809,7 @@ export default function Products() {
               <button
                 type="button"
                 onClick={() => {
-                  setActiveFilter("Semua");
+                  setActiveFilter("Varian Rasa");
                   setSearch("");
                   window.scrollTo({
                     top: 0,
@@ -819,7 +818,7 @@ export default function Products() {
                 }}
                 className="mt-6 rounded-full bg-[#C9184A] px-7 py-3 text-sm font-bold text-white shadow-lg transition hover:bg-[#A4133C]"
               >
-                Belanja Sekarang
+                Lihat Varian Rasa
               </button>
 
             </div>
