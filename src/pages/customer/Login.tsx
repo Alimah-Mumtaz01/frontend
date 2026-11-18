@@ -10,7 +10,11 @@ import {
 import { Link, useLocation, useNavigate } from "react-router";
 import { useAuth } from "../../context/AuthContext";
 
-export default function Login() {
+interface LoginProps {
+  expectedRole?: "user" | "admin";
+}
+
+export default function Login({ expectedRole = "user" }: LoginProps) {
   const { login } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -18,11 +22,10 @@ export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [rememberMe, setRememberMe] = useState(true);
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const redirectTo = location.state?.from?.pathname || "/";
+  const requestedPath = location.state?.from?.pathname;
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -36,19 +39,22 @@ export default function Login() {
     try {
       setIsSubmitting(true);
 
-      await login(email.trim(), password);
+      await login(email.trim(), password, expectedRole);
 
-      const loggedInUser = JSON.parse(
-        localStorage.getItem("soesweet_user") || "null"
-      );
-
-      // Arahkan pengguna berdasarkan role.
-      if (loggedInUser?.role === "admin") {
-        navigate("/admin/dashboard", { replace: true });
+      if (expectedRole === "admin") {
+        navigate(
+          requestedPath?.startsWith("/admin")
+            ? requestedPath
+            : "/admin/dashboard",
+          { replace: true }
+        );
       } else {
-        navigate(redirectTo.startsWith("/admin") ? "/" : redirectTo, {
-          replace: true,
-        });
+        navigate(
+          requestedPath && !requestedPath.startsWith("/admin")
+            ? requestedPath
+            : "/",
+          { replace: true }
+        );
       }
     } catch (err) {
       setError(
@@ -79,14 +85,15 @@ export default function Login() {
 
           <div className="relative z-10 max-w-sm">
             <p className="font-serif text-3xl font-bold italic leading-tight text-[#590D22] md:text-4xl">
-              Selamat Datang
+              {expectedRole === "admin" ? "Selamat Datang Admin" : "Selamat Datang"}
               <br />
               di SoeSweet!
             </p>
 
             <p className="mt-5 max-w-xs text-sm leading-relaxed text-[#590D22]">
-              Masuk untuk melanjutkan belanja dan menikmati lebih banyak
-              kelezatan.
+              {expectedRole === "admin"
+                ? "Masuk untuk mengelola toko dan operasional SoeSweet."
+                : "Masuk untuk melanjutkan belanja dan menikmati lebih banyak kelezatan."}
             </p>
 
             <div className="mt-8 flex items-center gap-3 text-7xl md:text-8xl">
@@ -108,11 +115,13 @@ export default function Login() {
 
             <div className="mb-8 text-center">
               <h1 className="font-serif text-3xl font-bold text-[#590D22]">
-                Masuk Akun
+                {expectedRole === "admin" ? "Masuk Admin" : "Masuk Akun"}
               </h1>
 
               <p className="mt-2 text-sm text-gray-500">
-                Masukkan email dan password kamu
+                {expectedRole === "admin"
+                  ? "Masukkan email dan password admin"
+                  : "Masukkan email dan password kamu"}
               </p>
             </div>
 
@@ -197,21 +206,25 @@ export default function Login() {
               </button>
             </form>
 
-            <div className="my-5 flex items-center gap-3">
-              <div className="h-px flex-1 bg-pink-100" />
-              <span className="text-xs text-gray-400">atau</span>
-              <div className="h-px flex-1 bg-pink-100" />
-            </div>
+            {expectedRole === "user" && (
+              <>
+                <div className="my-5 flex items-center gap-3">
+                  <div className="h-px flex-1 bg-pink-100" />
+                  <span className="text-xs text-gray-400">atau</span>
+                  <div className="h-px flex-1 bg-pink-100" />
+                </div>
 
-            <p className="text-center text-sm text-gray-600">
-              Belum punya akun?{" "}
-              <Link
-                to="/register"
-                className="font-bold text-[#C9184A] transition hover:text-[#800F2F]"
-              >
-                Daftar di sini
-              </Link>
-            </p>
+                <p className="text-center text-sm text-gray-600">
+                  Belum punya akun?{" "}
+                  <Link
+                    to="/register"
+                    className="font-bold text-[#C9184A] transition hover:text-[#800F2F]"
+                  >
+                    Daftar di sini
+                  </Link>
+                </p>
+              </>
+            )}
 
             <p className="mt-8 text-center text-xs text-gray-400">
               © {new Date().getFullYear()} SoeSweet

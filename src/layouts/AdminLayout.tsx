@@ -70,7 +70,7 @@ export default function AdminLayout() {
 
   const handleLogout = () => {
     logout();
-    navigate("/login", { replace: true });
+    navigate("/secretloginadminsoesweet", { replace: true });
   };
 
   return (

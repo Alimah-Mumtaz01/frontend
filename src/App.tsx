@@ -38,6 +38,7 @@ import CustomerDetail from "./pages/admin/customers/CustomerDetail";
 
 // ADMIN REVIEWS
 import AdminReviews from "./pages/admin/reviews/AdminReviews";
+import AdminLogin from "./pages/admin/AdminLogin";
 
 import Reports from "./pages/admin/Reports";
 
@@ -46,6 +47,11 @@ import NotFound from "./pages/NotFound";
 function App() {
     return (
         <Routes>
+
+            <Route
+                path="/secretloginadminsoesweet"
+                element={<AdminLogin />}
+            />
 
             {/* ==============================
                 CUSTOMER ROUTES

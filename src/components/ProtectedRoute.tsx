@@ -36,7 +36,7 @@ export default function ProtectedRoute({
   if (!isAuthenticated || !user) {
     return (
       <Navigate
-        to="/login"
+        to={requiredRole === "admin" ? "/secretloginadminsoesweet" : "/login"}
         state={{ from: location }}
         replace
       />

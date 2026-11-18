@@ -16,7 +16,11 @@ interface AuthContextType {
   token: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (
+    email: string,
+    password: string,
+    expectedRole: AuthUser["role"]
+  ) => Promise<void>;
   logout: () => void;
 }
 
@@ -57,8 +61,16 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     setIsLoading(false);
   }, []);
 
-  const login = async (email: string, password: string) => {
+  const login = async (
+    email: string,
+    password: string,
+    expectedRole: AuthUser["role"]
+  ) => {
     const result = await loginUser({ email, password });
+
+    if (result.user.role !== expectedRole) {
+      throw new Error("Email atau password salah.");
+    }
 
     localStorage.setItem(TOKEN_KEY, result.token);
     localStorage.setItem(USER_KEY, JSON.stringify(result.user));
