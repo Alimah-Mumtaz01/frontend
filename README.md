@@ -228,11 +228,12 @@ Frontend SoeSweet menerapkan sistem autentikasi menggunakan JWT yang diperoleh s
 Beberapa ketentuan autentikasi meliputi:
 
 - Customer harus login untuk menggunakan fitur pemesanan.
-- Admin harus login menggunakan akun dengan role admin.
+- Customer login melalui `/login` menggunakan akun dengan role `user`. Akun dengan role lain ditolak dengan pesan umum **“Email atau password salah.”**
+- Admin login melalui halaman khusus `/secretloginadminsoesweet` menggunakan akun dengan role `admin`.
 - Token digunakan untuk mengakses endpoint backend yang memerlukan autentikasi.
 - Pengguna diarahkan ke halaman sesuai role dan status autentikasinya.
 
-Validasi autentikasi dan otorisasi tetap dilakukan oleh backend sebagai bagian dari keamanan aplikasi.
+URL login admin yang khusus hanya memisahkan alur antarmuka dan bukan pengganti keamanan. Validasi autentikasi dan otorisasi tetap dilakukan oleh backend sebagai bagian dari keamanan aplikasi.
 
 ## Dokumentasi
 
