@@ -55,15 +55,29 @@ export interface CustomerOrderReview {
 export interface CustomerOrder {
     id_order: number;
     id_user: number;
+
+    // Informasi pengiriman
     tipe_pengiriman: "pickup" | "delivery";
+    nama_penerima?: string | null;
+    no_hp_penerima?: string | null;
     alamat_pengiriman?: string | null;
+    catatan_alamat_pengiriman?: string | null;
+
+    // Snapshot koordinat dan jarak pengiriman
+    latitude_pengiriman?: number | string | null;
+    longitude_pengiriman?: number | string | null;
+    jarak_pengiriman?: number | string | null;
+
+    // Informasi pembayaran
     catatan?: string | null;
     subtotal: number;
     ongkir: number;
     total_harga: number;
+
     status_order: CustomerOrderStatus;
     createdAt: string;
     updatedAt?: string;
+
     orderItems?: CustomerOrderItem[];
     payment?: CustomerPayment | null;
     review?: CustomerOrderReview | null;
@@ -72,10 +86,23 @@ export interface CustomerOrder {
 export interface CustomerOrderShippingUpdate {
     id_order: number;
     tipe_pengiriman: "pickup" | "delivery";
+    nama_penerima?: string | null;
+    no_hp_penerima?: string | null;
     alamat_pengiriman: string | null;
+    catatan_alamat_pengiriman?: string | null;
+    jarak_pengiriman?: number | string | null;
     subtotal: number;
     ongkir: number;
     total_harga: number;
+}
+
+export interface CustomerOrderShippingRequest {
+    tipe_pengiriman: "pickup" | "delivery";
+    address_source?: "profile" | "custom";
+    nama_penerima?: string | null;
+    no_hp_penerima?: string | null;
+    alamat_pengiriman?: string | null;
+    catatan_alamat_pengiriman?: string | null;
 }
 
 interface ApiResponse<T> {
@@ -109,17 +136,13 @@ export const getMyOrders = async (): Promise<CustomerOrder[]> => {
  */
 export const updateMyOrderShipping = async (
     id_order: number,
-    tipe_pengiriman: "pickup" | "delivery",
-    alamat_pengiriman: string | null
+    payload: CustomerOrderShippingRequest
 ): Promise<CustomerOrderShippingUpdate> => {
     const response = await apiRequest<ApiResponse<CustomerOrderShippingUpdate>>(
         `/orders/my-orders/${id_order}/shipping`,
         {
             method: "PUT",
-            body: JSON.stringify({
-                tipe_pengiriman,
-                alamat_pengiriman,
-            }),
+            body: JSON.stringify(payload),
         }
     );
 
