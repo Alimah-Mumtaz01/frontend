@@ -11,7 +11,7 @@ import ProductDetail from "./pages/customer/ProductDetail";
 import About from "./pages/customer/About";
 import Contact from "./pages/customer/Contact";
 import PublicReviews from "./pages/customer/reviews/PublicReviews";
-
+import Profile from "./pages/customer/Profile";
 import Cart from "./pages/customer/Cart";
 import Checkout from "./pages/customer/Checkout";
 import Login from "./pages/customer/Login";
@@ -97,6 +97,14 @@ function App() {
                     element={
                         <ProtectedRoute requiredRole="user">
                             <MyOrders />
+                        </ProtectedRoute>
+                    }
+                />
+                <Route
+                    path="/profile"
+                    element={
+                        <ProtectedRoute requiredRole="user">
+                            <Profile />
                         </ProtectedRoute>
                     }
                 />
