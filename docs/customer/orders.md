@@ -17,7 +17,7 @@ Komponen yang terdapat pada halaman Riwayat Pesanan meliputi:
 - **Informasi Pesanan:** Menampilkan nomor pesanan, tanggal, dan status pesanan.
 - **Detail Produk:** Menampilkan produk, gambar, varian rasa, dan jumlah pesanan.
 - **Rincian Pembayaran:** Menampilkan subtotal, biaya pengiriman, dan total pembayaran.
-- **Informasi Penerimaan:** Menampilkan metode pickup atau delivery serta alamat pengiriman jika tersedia.
+- **Informasi Penerimaan:** Menampilkan metode pickup atau delivery serta alamat dan catatan alamat pengiriman jika tersedia.
 - **Form Pembayaran:** Digunakan untuk mengunggah bukti pembayaran.
 - **Footer:** Menampilkan informasi tambahan aplikasi.
 
@@ -28,6 +28,7 @@ Komponen yang terdapat pada halaman Riwayat Pesanan meliputi:
 - Melihat produk beserta varian rasa yang dipesan.
 - Melihat jumlah pesanan dan rincian pembayaran.
 - Melihat metode penerimaan pesanan.
+- Melihat catatan alamat pengiriman untuk pesanan delivery jika tersedia.
 - Melihat status terbaru pesanan.
 - Mengunggah bukti pembayaran.
 - Melihat status pemeriksaan pembayaran.
@@ -90,8 +91,8 @@ Ukuran maksimal file adalah 5 MB.
 
 1. Customer memilih **Ubah Pengiriman** pada pesanan berstatus menunggu konfirmasi dengan subtotal minimal Rp50.000.
 2. Customer memilih pickup atau delivery.
-3. Jika memilih delivery, customer memasukkan alamat pengiriman.
-4. Backend memvalidasi pesanan dan menghitung ulang ongkir serta total pembayaran.
+3. Jika memilih delivery, customer memilih alamat profil atau mengisi alamat baru beserta nama penerima, nomor HP, dan catatan alamat.
+4. Backend memvalidasi status pesanan, menghitung ulang ongkir, dan memperbarui snapshot alamat serta total pembayaran.
 5. Setelah berhasil, halaman menampilkan metode pengiriman dan total terbaru.
 
 ## 6. Status Pesanan
