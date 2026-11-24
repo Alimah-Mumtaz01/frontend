@@ -18,7 +18,7 @@ Komponen yang terdapat pada halaman Manajemen Pesanan meliputi:
 - **Informasi Customer:** Menampilkan identitas customer yang melakukan pemesanan.
 - **Detail Produk:** Menampilkan produk, varian rasa, dan jumlah pesanan.
 - **Rincian Pembayaran:** Menampilkan subtotal, biaya pengiriman, dan total pembayaran.
-- **Informasi Pengiriman:** Menampilkan metode penerimaan pesanan dan alamat pengiriman jika menggunakan delivery.
+- **Informasi Pengiriman:** Menampilkan metode penerimaan pesanan, alamat, dan catatan alamat pengiriman jika menggunakan delivery.
 - **Pengelolaan Status:** Digunakan untuk memperbarui status pesanan.
 
 ## 3. Fitur yang Tersedia
@@ -31,6 +31,7 @@ Komponen yang terdapat pada halaman Manajemen Pesanan meliputi:
 - Melihat produk dan varian rasa yang dipesan.
 - Melihat jumlah dan total pembayaran.
 - Melihat metode pickup atau delivery.
+- Melihat catatan alamat pengiriman jika tersedia.
 - Memeriksa bukti pembayaran.
 - Memperbarui status pesanan.
 - Memantau perkembangan pesanan hingga selesai atau dibatalkan.
@@ -51,6 +52,7 @@ Data pesanan yang digunakan meliputi:
 - Total pembayaran.
 - Metode penerimaan.
 - Alamat pengiriman jika tersedia.
+- Catatan alamat pengiriman jika tersedia.
 - Status pesanan.
 
 Proses integrasi API meliputi:
