@@ -8,6 +8,13 @@ import type { CartItem } from "../types/cart";
 export type ShippingType = "pickup" | "delivery";
 
 /**
+ * Sumber alamat pengiriman.
+ * profile = menggunakan alamat utama dari profil.
+ * custom = menggunakan alamat khusus untuk pesanan ini.
+ */
+export type AddressSource = "profile" | "custom";
+
+/**
  * Format varian untuk request checkout.
  */
 export interface CheckoutVariantRequest {
@@ -29,7 +36,16 @@ export interface CheckoutItemRequest {
  */
 export interface CheckoutRequest {
   tipe_pengiriman: ShippingType;
-  alamat_pengiriman: string | null;
+
+  // Pilihan sumber alamat.
+  address_source?: AddressSource | null;
+
+  // Digunakan jika address_source = custom.
+  nama_penerima?: string | null;
+  no_hp_penerima?: string | null;
+  alamat_pengiriman?: string | null;
+  catatan_alamat_pengiriman?: string | null;
+
   catatan: string | null;
   items: CheckoutItemRequest[];
 }
@@ -63,11 +79,21 @@ export interface CheckoutProductResponse {
  */
 export interface CheckoutPreview {
   tipe_pengiriman: ShippingType;
+  address_source?: AddressSource | null;
+
+  nama_penerima?: string | null;
+  no_hp_penerima?: string | null;
   alamat_pengiriman: string | null;
+  catatan_alamat_pengiriman?: string | null;
+
+  jarak_pengiriman?: number | null;
+  displayName?: string | null;
+
   catatan: string | null;
   subtotal: number;
   ongkir: number;
   total_harga: number;
+
   items: {
     product: CheckoutProductResponse;
   }[];
@@ -82,18 +108,6 @@ interface ApiResponse<T> {
   data: T;
 }
 
-/**
- * Mengubah CartItem menjadi format request backend.
- *
- * Pada keranjang:
- * jumlah varian = jumlah untuk satu paket.
- *
- * Pada backend:
- * jumlah varian = jumlah untuk seluruh paket.
- *
- * Contoh:
- * 6 pcs x 2 paket = 12 pcs.
- */
 export const mapCartToCheckoutItems = (
   cartItems: CartItem[]
 ): CheckoutItemRequest[] => {
