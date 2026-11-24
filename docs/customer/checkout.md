@@ -4,7 +4,7 @@
 
 Halaman Checkout merupakan halaman yang digunakan customer untuk memeriksa dan mengonfirmasi pesanan sebelum pesanan dibuat.
 
-Pada halaman ini, customer dapat memeriksa produk dan varian rasa yang dipilih, menentukan metode penerimaan pesanan, mengisi alamat pengiriman jika memilih delivery, serta melihat rincian biaya dan total pembayaran.
+Pada halaman ini, customer dapat memeriksa produk dan varian rasa yang dipilih, menentukan metode penerimaan pesanan, mengisi data penerima dan alamat jika memilih delivery, serta melihat rincian biaya dan total pembayaran.
 
 ## 2. Komponen Halaman
 
@@ -13,7 +13,7 @@ Komponen yang terdapat pada halaman Checkout meliputi:
 - **Navbar:** Menampilkan navigasi utama aplikasi SoeSweet.
 - **Ringkasan Pesanan:** Menampilkan produk, varian rasa, jumlah, dan harga.
 - **Metode Penerimaan:** Menyediakan pilihan pengambilan langsung (*pickup*) atau pengiriman (*delivery*).
-- **Alamat Pengiriman:** Menampilkan form alamat apabila customer memilih delivery.
+- **Data Penerima dan Alamat Pengiriman:** Menampilkan form nama, nomor HP, dan alamat apabila customer memilih delivery.
 - **Rincian Pembayaran:** Menampilkan subtotal, biaya pengiriman, dan total pembayaran.
 - **Tombol Buat Pesanan:** Mengirimkan pesanan untuk diproses oleh backend.
 - **Footer:** Menampilkan informasi tambahan aplikasi.
@@ -23,7 +23,7 @@ Komponen yang terdapat pada halaman Checkout meliputi:
 - Menampilkan produk yang dipilih dari halaman Keranjang.
 - Menampilkan detail varian rasa dan jumlah pesanan.
 - Memilih metode penerimaan pesanan.
-- Mengisi alamat pengiriman untuk metode delivery.
+- Mengisi nama penerima, nomor HP, dan alamat pengiriman untuk metode delivery.
 - Menghitung subtotal pesanan.
 - Menghitung biaya pengiriman.
 - Menampilkan total pembayaran.
@@ -56,7 +56,7 @@ Backend memproses pesanan dan menyimpannya ke database dengan status awal `menun
 2. Frontend mengambil data produk yang telah dipilih.
 3. Customer memeriksa rincian produk dan varian rasa.
 4. Customer memilih metode pickup atau delivery.
-5. Jika memilih delivery, customer mengisi alamat pengiriman.
+5. Jika memilih delivery, customer mengisi nama penerima, nomor HP, dan alamat pengiriman.
 6. Frontend mengirimkan data ke backend untuk preview checkout.
 7. Backend mengembalikan rincian pesanan.
 8. Frontend menampilkan subtotal, biaya pengiriman, dan total pembayaran.
@@ -72,7 +72,7 @@ Backend memproses pesanan dan menyimpannya ke database dengan status awal `menun
 - Pilihan varian rasa harus sesuai dengan jumlah isi.
 - Stok varian harus mencukupi.
 - Metode penerimaan pesanan harus dipilih.
-- Alamat pengiriman wajib diisi apabila memilih delivery.
+- Nama penerima (3-100 karakter), nomor HP (10-20 angka atau tanda `+`), dan alamat (10-500 karakter) wajib diisi apabila memilih delivery.
 - Pesanan delivery memiliki minimum pembelian Rp50.000.
 - Biaya pickup adalah Rp0.
 - Biaya delivery mengikuti konfigurasi biaya pengiriman aplikasi.
@@ -81,7 +81,7 @@ Backend memproses pesanan dan menyimpannya ke database dengan status awal `menun
 
 ## 7. Pengelolaan Data Pesanan
 
-Data yang dikirimkan saat pembuatan pesanan mencakup informasi produk, varian rasa, jumlah pesanan, metode penerimaan, alamat pengiriman jika diperlukan, serta rincian pembayaran.
+Data yang dikirimkan saat pembuatan pesanan mencakup informasi produk, varian rasa, jumlah pesanan, metode penerimaan, data penerima dan alamat pengiriman jika diperlukan, serta rincian pembayaran.
 
 Setelah pesanan berhasil dibuat, data pesanan disimpan oleh backend dan dapat dilihat customer melalui halaman Riwayat Pesanan.
 
