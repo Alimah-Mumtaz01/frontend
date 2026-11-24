@@ -79,19 +79,33 @@ export interface OrderPayment {
     updatedAt?: string;
 }
 
+
 export interface CreatedOrder {
     id_order: number;
     id_user?: number;
+
     tipe_pengiriman?: "pickup" | "delivery";
+
+    nama_penerima?: string | null;
+    no_hp_penerima?: string | null;
     alamat_pengiriman?: string | null;
+    catatan_alamat_pengiriman?: string | null;
+
+    latitude_pengiriman?: number | string | null;
+    longitude_pengiriman?: number | string | null;
+    jarak_pengiriman?: number | string | null;
+
     catatan?: string | null;
     subtotal?: number | string;
     ongkir?: number | string;
     total_harga?: number | string;
+
     status_order?: OrderStatus;
     status_pesanan?: string;
+
     createdAt?: string;
     updatedAt?: string;
+
     orderItems?: OrderItem[];
 }
 
