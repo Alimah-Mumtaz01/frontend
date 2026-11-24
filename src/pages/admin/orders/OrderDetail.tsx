@@ -631,9 +631,10 @@ export default function OrderDetail() {
                                 </p>
                             </div>
                         </div>
-
+                     
                         <div className="space-y-4">
 
+                            {/* METODE PENGIRIMAN */}
                             <div>
                                 <p className="text-xs text-[#98717E]">
                                     Metode Pengiriman
@@ -646,25 +647,138 @@ export default function OrderDetail() {
                                 </p>
                             </div>
 
+                            {/* DETAIL PENERIMA DAN ALAMAT DELIVERY */}
                             {order.tipe_pengiriman === "delivery" && (
-                                <div>
-                                    <p className="text-xs text-[#98717E]">
-                                        Alamat Pengiriman
-                                    </p>
+                                <>
+                                    {/* NAMA PENERIMA */}
+                                    <div>
+                                        <p className="text-xs text-[#98717E]">
+                                            Nama Penerima
+                                        </p>
 
-                                    <div className="mt-2 flex items-start gap-2 text-sm leading-relaxed text-[#590D22]">
-                                        <MapPin
-                                            size={17}
+                                        <div className="mt-2 flex items-center gap-2 text-sm font-medium text-[#590D22]">
+                                            <UserRound
+                                                size={17}
+                                                className="shrink-0 text-[#C9184A]"
+                                            />
+
+                                            <p>
+                                                {order.nama_penerima || "Nama penerima belum tersedia."}
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    {/* NOMOR HP PENERIMA */}
+                                    <div>
+                                        <p className="text-xs text-[#98717E]">
+                                            Nomor HP Penerima
+                                        </p>
+
+                                        <div className="mt-2 flex items-center gap-2 text-sm font-medium text-[#590D22]">
+                                            <Phone
+                                                size={17}
+                                                className="shrink-0 text-[#C9184A]"
+                                            />
+
+                                            <p>
+                                                {order.no_hp_penerima || "Nomor HP belum tersedia."}
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    {/* ALAMAT PENGIRIMAN */}
+                                    <div>
+                                        <p className="text-xs text-[#98717E]">
+                                            Alamat Pengiriman
+                                        </p>
+
+                                        <div className="mt-2 flex items-start gap-2 text-sm leading-relaxed text-[#590D22]">
+                                            <MapPin
+                                                size={17}
+                                                className="mt-0.5 shrink-0 text-[#C9184A]"
+                                            />
+
+                                            <p>
+                                                {order.alamat_pengiriman || "Alamat belum tersedia."}
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    {order.catatan_alamat_pengiriman?.trim() && (
+                                        <div>
+                                            <p className="text-xs text-[#98717E]">
+                                                Catatan Alamat Pengiriman
+                                            </p>
+
+                                            <div className="mt-2 flex items-start gap-2 text-sm leading-relaxed text-[#590D22]">
+                                                <FileText
+                                                    size={17}
+                                                    className="mt-0.5 shrink-0 text-[#C9184A]"
+                                                />
+
+                                                <p className="whitespace-pre-line break-words">
+                                                    {order.catatan_alamat_pengiriman}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* JARAK PENGIRIMAN */}
+                                    <div>
+                                        <p className="text-xs text-[#98717E]">
+                                            Jarak Pengiriman
+                                        </p>
+
+                                        <p className="mt-1 font-semibold text-[#590D22]">
+                                            {order.jarak_pengiriman !== null &&
+                                            order.jarak_pengiriman !== undefined &&
+                                            Number.isFinite(Number(order.jarak_pengiriman))
+                                                ? `${Number(order.jarak_pengiriman).toFixed(2)} km`
+                                                : "Jarak belum tersedia."}
+                                        </p>
+                                    </div>
+
+                                    {/* ONGKOS KIRIM */}
+                                    <div>
+                                        <p className="text-xs text-[#98717E]">
+                                            Ongkos Kirim
+                                        </p>
+
+                                        <p className="mt-1 font-semibold text-[#C9184A]">
+                                            {formatRupiah(order.ongkir)}
+                                        </p>
+                                    </div>
+                                </>
+                            )}
+
+                            {/* INFORMASI PICKUP */}
+                            {order.tipe_pengiriman === "pickup" && (
+                                <div className="rounded-xl border border-pink-100 bg-[#FFF9FA] p-4">
+                                    <div className="flex items-start gap-2">
+                                        <Store
+                                            size={19}
                                             className="mt-0.5 shrink-0 text-[#C9184A]"
                                         />
 
-                                        <p>
-                                            {order.alamat_pengiriman || "Alamat belum tersedia."}
-                                        </p>
+                                        <div>
+                                            <p className="text-sm font-semibold text-[#590D22]">
+                                                Pengambilan di Toko
+                                            </p>
+
+                                            <p className="mt-1 text-xs leading-relaxed text-[#98717E]">
+                                                Pelanggan mengambil pesanan secara langsung
+                                                di toko SoeSweet. Tidak ada biaya pengiriman.
+                                            </p>
+
+                                            <p className="mt-2 text-sm font-bold text-[#C9184A]">
+                                                Ongkir: Rp0
+                                            </p>
+                                        </div>
                                     </div>
                                 </div>
                             )}
 
+                            {/* CATATAN PESANAN */}
                             <div>
                                 <p className="text-xs text-[#98717E]">
                                     Catatan Pesanan
