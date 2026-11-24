@@ -75,6 +75,7 @@ export interface CustomerOrder {
     total_harga: number;
 
     status_order: CustomerOrderStatus;
+    alasan_pembatalan?: string | null;
     createdAt: string;
     updatedAt?: string;
 

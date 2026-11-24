@@ -110,7 +110,7 @@ Status pesanan yang digunakan dalam aplikasi SoeSweet meliputi:
 | `siap_diambil` | Pesanan siap diambil customer. |
 | `sedang_dikirim` | Pesanan sedang dalam proses pengiriman. |
 | `selesai` | Pesanan telah selesai. |
-| `dibatalkan` | Pesanan telah dibatalkan. |
+| `dibatalkan` | Pesanan telah dibatalkan; alasan pembatalan ditampilkan pada kartu pesanan. |
 
 ## 7. Ketentuan dan Validasi
 

@@ -167,6 +167,8 @@ export default function OrderDetail() {
     const [showRejectModal, setShowRejectModal] = useState(false);
     const [rejectNote, setRejectNote] = useState("");
     const [rejectError, setRejectError] = useState("");
+    const [cancelReason, setCancelReason] = useState("");
+    const [cancelReasonError, setCancelReasonError] = useState("");
 
     const fetchOrder = useCallback(async () => {
         if (!Number.isInteger(orderId) || orderId <= 0) {
@@ -217,20 +219,52 @@ export default function OrderDetail() {
 
     const confirmUpdateStatus = async () => {
         if (!order || !selectedStatus) return;
+
+        // Memeriksa alasan jika status yang dipilih adalah dibatalkan.
+        const reason = cancelReason.trim();
+
+        if (selectedStatus === "dibatalkan") {
+            if (!reason) {
+                setCancelReasonError(
+                    "Alasan pembatalan wajib diisi."
+                );
+                return;
+            }
+
+            if (reason.length < 5) {
+                setCancelReasonError(
+                    "Alasan pembatalan minimal 5 karakter."
+                );
+                return;
+            }
+
+            if (reason.length > 1000) {
+                setCancelReasonError(
+                    "Alasan pembatalan maksimal 1000 karakter."
+                );
+                return;
+            }
+        }
+
         try {
             setActionLoading(true);
             setError("");
             setSuccess("");
+            setCancelReasonError("");
 
             await updateAdminOrderStatus(
                 order.id_order,
-                selectedStatus
+                selectedStatus,
+                selectedStatus === "dibatalkan"
+                    ? reason
+                    : undefined
             );
 
             setSuccess("Status pesanan berhasil diperbarui.");
             setConfirmationAction(null);
 
             setSelectedStatus("");
+            setCancelReason("");
 
             await fetchOrder();
         } catch (err) {
@@ -481,6 +515,17 @@ export default function OrderDetail() {
                         >
                             {statusLabels[status]}
                         </span>
+                        {status === "dibatalkan" && order.alasan_pembatalan && (
+                            <div className="mt-3 max-w-sm rounded-xl border border-red-100 bg-red-50 p-3 sm:text-right">
+                                <p className="text-xs font-bold text-red-700">
+                                    Alasan Pembatalan
+                                </p>
+
+                                <p className="mt-1 whitespace-pre-line break-words text-sm leading-relaxed text-red-600">
+                                    {order.alasan_pembatalan}
+                                </p>
+                            </div>
+                        )}
                     </div>
 
                 </div>
@@ -1166,11 +1211,13 @@ export default function OrderDetail() {
 
                                 <select
                                     value={selectedStatus}
-                                    onChange={(e) =>
-                                        setSelectedStatus(
-                                            e.target.value as OrderStatus | ""
-                                        )
-                                    }
+                                    onChange={(e) => {
+                                        const nextStatus = e.target.value as OrderStatus | "";
+
+                                        setSelectedStatus(nextStatus);
+                                        setCancelReason("");
+                                        setCancelReasonError("");
+                                    }}
                                     disabled={actionLoading}
                                     className="w-full rounded-xl border border-pink-100 bg-white px-4 py-3 text-sm text-[#590D22] outline-none focus:border-[#C9184A] disabled:opacity-50"
                                 >
@@ -1286,6 +1333,47 @@ export default function OrderDetail() {
                                 : `Status pesanan #${order.id_order} akan diubah menjadi "${statusLabels[selectedStatus as OrderStatus]}".`}
                         </p>
 
+                            {/* INPUT ALASAN PEMBATALAN */}
+                            {confirmationAction === "status" &&
+                                selectedStatus === "dibatalkan" && (
+                                    <div className="mt-5">
+                                        <label className="mb-2 block text-sm font-semibold text-[#590D22]">
+                                            Alasan Pembatalan
+                                            <span className="text-red-500"> *</span>
+                                        </label>
+
+                                        <textarea
+                                            value={cancelReason}
+                                            onChange={(e) => {
+                                                setCancelReason(e.target.value);
+                                                setCancelReasonError("");
+                                            }}
+                                            rows={4}
+                                            maxLength={1000}
+                                            placeholder="Contoh: Pesanan dibatalkan karena stok produk tidak mencukupi."
+                                            disabled={actionLoading}
+                                            className="w-full resize-none rounded-xl border border-pink-100 px-4 py-3 text-sm text-[#590D22] outline-none placeholder:text-pink-300 focus:border-[#C9184A] focus:ring-2 focus:ring-pink-100 disabled:opacity-50"
+                                        />
+
+                                        <div className="mt-1 flex items-center justify-between gap-2">
+                                            {cancelReasonError ? (
+                                                <p className="text-xs text-red-500">
+                                                    {cancelReasonError}
+                                                </p>
+                                            ) : (
+                                                <p className="text-xs text-[#98717E]">
+                                                    Alasan pembatalan wajib diisi.
+                                                </p>
+                                            )}
+
+                                            <p className="shrink-0 text-xs text-gray-400">
+                                                {cancelReason.length}/1000
+                                            </p>
+                                        </div>
+                                    </div>
+                                )
+                            }
+
                         {error && (
                             <div className="mt-4 flex items-start gap-2 rounded-xl border border-red-100 bg-red-50 p-3 text-sm text-red-600">
                                 <AlertCircle size={18} className="mt-0.5 shrink-0" />
@@ -1299,6 +1387,8 @@ export default function OrderDetail() {
                                 onClick={() => {
                                     setConfirmationAction(null);
                                     setError("");
+                                    setCancelReason("");
+                                    setCancelReasonError("");
                                 }}
                                 disabled={actionLoading}
                                 className="flex-1 rounded-xl border border-pink-100 py-3 text-sm font-bold text-[#590D22] transition hover:bg-pink-50 disabled:opacity-50"

@@ -1717,6 +1717,19 @@ export default function MyOrders() {
                                                     </div>
                                                 )}
 
+                                                {status === "dibatalkan" && (
+                                                    <div className="mt-4 rounded-xl border border-red-100 bg-red-50 p-4">
+                                                        <p className="text-sm font-bold text-red-700">
+                                                            Alasan Pembatalan
+                                                        </p>
+
+                                                        <p className="mt-1 whitespace-pre-line break-words text-xs leading-relaxed text-red-600">
+                                                            {order.alasan_pembatalan ||
+                                                                "Alasan pembatalan belum tersedia."}
+                                                        </p>
+                                                    </div>
+                                                )}
+
                                                 {status === "selesai" && (
                                                     <div className="mt-4 flex items-center gap-2 rounded-xl border border-green-100 bg-green-50 p-3 text-xs font-medium text-green-700">
                                                         <CheckCircle size={17} />

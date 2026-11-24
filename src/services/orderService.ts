@@ -79,7 +79,6 @@ export interface OrderPayment {
     updatedAt?: string;
 }
 
-
 export interface CreatedOrder {
     id_order: number;
     id_user?: number;
@@ -102,6 +101,9 @@ export interface CreatedOrder {
 
     status_order?: OrderStatus;
     status_pesanan?: string;
+
+    // Keterangan ketika pesanan dibatalkan.
+    alasan_pembatalan?: string | null;
 
     createdAt?: string;
     updatedAt?: string;
@@ -222,12 +224,12 @@ export const verifyAdminPayment = async (
 
 /**
  * Memperbarui status pesanan.
- * Perubahan status akan divalidasi kembali
- * oleh orderService pada backend.
+ * Alasan pembatalan dikirim jika status yang dipilih adalah dibatalkan.
  */
 export const updateAdminOrderStatus = async (
     id_order: number,
-    status_order: OrderStatus
+    status_order: OrderStatus,
+    alasan_pembatalan?: string
 ): Promise<AdminOrder> => {
     const response = await apiRequest<ApiResponse<AdminOrder>>(
         `/orders/${id_order}/status`,
@@ -235,6 +237,10 @@ export const updateAdminOrderStatus = async (
             method: "PUT",
             body: JSON.stringify({
                 status_order,
+
+                ...(status_order === "dibatalkan"
+                    ? { alasan_pembatalan }
+                    : {}),
             }),
         }
     );
