@@ -122,13 +122,16 @@ export default function Navbar() {
                 </NavLink>
 
                 {/* Informasi Customer */}
-                <div className="flex items-center gap-2 text-soe-dark">
-                  <UserRound size={19} className="text-soe-primary" />
+                <Link
+                    to="/profile"
+                    className="flex items-center gap-2 rounded-full px-3 py-2 text-soe-dark transition hover:bg-pink-50 hover:text-soe-primary"
+                >
+                    <UserRound size={19} className="text-soe-primary" />
 
-                  <span className="max-w-28 truncate text-sm font-semibold">
-                    {user.nama}
-                  </span>
-                </div>
+                    <span className="max-w-28 truncate text-sm font-semibold">
+                        {user.nama}
+                    </span>
+                </Link>
 
                 {/* Logout */}
                 <button
@@ -213,11 +216,15 @@ export default function Navbar() {
                     </NavLink>
 
                     {/* Informasi Customer */}
-                    <div className="flex items-center gap-2 text-sm font-medium text-soe-dark">
-                      <UserRound size={18} className="text-soe-primary" />
+                    <Link
+                        to="/profile"
+                        onClick={() => setMobileMenuOpen(false)}
+                        className="flex items-center gap-2 text-sm font-medium text-soe-dark transition hover:text-soe-primary"
+                    >
+                        <UserRound size={18} className="text-soe-primary" />
 
-                      <span>{user.nama}</span>
-                    </div>
+                        <span>{user.nama} - Profile Saya</span>
+                    </Link>
 
                     {/* Logout */}
                     <button
