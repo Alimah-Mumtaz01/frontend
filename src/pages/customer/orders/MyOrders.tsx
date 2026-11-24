@@ -27,6 +27,9 @@ import {
     Trash2,
     Eye,
     Copy,
+    MapPin,
+    Phone,
+    User,
 } from "lucide-react";
 
 import { getImageUrl } from "../../../services/api";
@@ -52,6 +55,10 @@ import {
     deleteReview,
     type Review,
 } from "../../../services/reviewService";
+import {
+    getProfile,
+    type PrimaryAddress,
+} from "../../../services/profileService";
 
 type OrderTab =
     | "semua"
@@ -289,7 +296,20 @@ export default function MyOrders() {
         useState<CustomerOrder | null>(null);
     const [shippingType, setShippingType] =
         useState<"pickup" | "delivery">("pickup");
+    const [shippingAddressSource, setShippingAddressSource] =
+        useState<"profile" | "custom">("custom");
+    const [shippingRecipientName, setShippingRecipientName] =
+        useState("");
+    const [shippingRecipientPhone, setShippingRecipientPhone] =
+        useState("");
     const [shippingAddress, setShippingAddress] = useState("");
+    const [shippingAddressNote, setShippingAddressNote] = useState("");
+    const [shippingProfileAddress, setShippingProfileAddress] =
+        useState<PrimaryAddress | null>(null);
+    const [isLoadingShippingProfile, setIsLoadingShippingProfile] =
+        useState(false);
+    const [shippingProfileError, setShippingProfileError] = useState("");
+    const shippingProfileRequestRef = useRef(0);
     const [shippingError, setShippingError] = useState("");
     const [updatingShipping, setUpdatingShipping] = useState(false);
 
@@ -475,29 +495,122 @@ export default function MyOrders() {
         }
     };
 
-    const openShippingModal = (order: CustomerOrder) => {
+    const openShippingModal = async (order: CustomerOrder) => {
+        const requestId = ++shippingProfileRequestRef.current;
+
         setSelectedShippingOrder(order);
         setShippingType(order.tipe_pengiriman);
+        setShippingAddressSource("custom");
+        setShippingRecipientName(order.nama_penerima || "");
+        setShippingRecipientPhone(order.no_hp_penerima || "");
         setShippingAddress(order.alamat_pengiriman || "");
+        setShippingAddressNote(order.catatan_alamat_pengiriman || "");
+        setShippingProfileAddress(null);
+        setIsLoadingShippingProfile(true);
+        setShippingProfileError("");
         setShippingError("");
+
+        try {
+            const profile = await getProfile();
+
+            if (requestId === shippingProfileRequestRef.current) {
+                setShippingProfileAddress(profile.address);
+            }
+        } catch (error) {
+            if (requestId === shippingProfileRequestRef.current) {
+                setShippingProfileError(
+                    error instanceof Error
+                        ? error.message
+                        : "Gagal mengambil alamat profil."
+                );
+            }
+        } finally {
+            if (requestId === shippingProfileRequestRef.current) {
+                setIsLoadingShippingProfile(false);
+            }
+        }
     };
 
     const closeShippingModal = () => {
         if (updatingShipping) return;
 
+        shippingProfileRequestRef.current += 1;
         setSelectedShippingOrder(null);
         setShippingError("");
+        setShippingProfileError("");
+    };
+
+    const handleShippingAddressSourceChange = (
+        source: "profile" | "custom"
+    ) => {
+        setShippingAddressSource(source);
+        setShippingError("");
+
+        if (source === "profile" && shippingProfileAddress) {
+            setShippingRecipientName(shippingProfileAddress.nama_penerima);
+            setShippingRecipientPhone(shippingProfileAddress.no_hp);
+            setShippingAddress(shippingProfileAddress.alamat);
+            setShippingAddressNote(shippingProfileAddress.catatan || "");
+        }
     };
 
     const handleUpdateShipping = async () => {
         if (!selectedShippingOrder) return;
 
-        if (
-            shippingType === "delivery" &&
-            !shippingAddress.trim()
-        ) {
-            setShippingError("Alamat pengiriman wajib diisi untuk delivery.");
-            return;
+        if (shippingType === "delivery") {
+            if (
+                shippingAddressSource === "profile" &&
+                !shippingProfileAddress
+            ) {
+                setShippingError(
+                    "Alamat utama belum tersedia. Silakan pilih alamat baru atau simpan alamat melalui halaman Profil."
+                );
+                return;
+            }
+
+            if (shippingAddressSource === "custom") {
+                if (shippingRecipientName.trim().length < 3) {
+                    setShippingError(
+                        "Nama penerima minimal 3 karakter."
+                    );
+                    return;
+                }
+
+                if (shippingRecipientName.trim().length > 100) {
+                    setShippingError(
+                        "Nama penerima maksimal 100 karakter."
+                    );
+                    return;
+                }
+
+                if (!/^[0-9+]{10,20}$/.test(shippingRecipientPhone.trim())) {
+                    setShippingError(
+                        "Nomor HP harus terdiri dari 10-20 angka atau tanda +."
+                    );
+                    return;
+                }
+
+                if (shippingAddress.trim().length < 10) {
+                    setShippingError(
+                        "Alamat pengiriman minimal 10 karakter."
+                    );
+                    return;
+                }
+
+                if (shippingAddress.trim().length > 500) {
+                    setShippingError(
+                        "Alamat pengiriman maksimal 500 karakter."
+                    );
+                    return;
+                }
+
+                if (shippingAddressNote.trim().length > 500) {
+                    setShippingError(
+                        "Catatan alamat pengiriman maksimal 500 karakter."
+                    );
+                    return;
+                }
+            }
         }
 
         try {
@@ -506,10 +619,22 @@ export default function MyOrders() {
 
             const updatedShipping = await updateMyOrderShipping(
                 selectedShippingOrder.id_order,
-                shippingType,
                 shippingType === "delivery"
-                    ? shippingAddress.trim()
-                    : null
+                    ? shippingAddressSource === "profile"
+                        ? {
+                              tipe_pengiriman: shippingType,
+                              address_source: "profile",
+                          }
+                        : {
+                              tipe_pengiriman: shippingType,
+                              address_source: "custom",
+                              nama_penerima: shippingRecipientName.trim(),
+                              no_hp_penerima: shippingRecipientPhone.trim(),
+                              alamat_pengiriman: shippingAddress.trim(),
+                              catatan_alamat_pengiriman:
+                                  shippingAddressNote.trim() || null,
+                          }
+                    : { tipe_pengiriman: shippingType }
             );
 
             setOrders((previous) =>
@@ -520,6 +645,7 @@ export default function MyOrders() {
                 )
             );
 
+            shippingProfileRequestRef.current += 1;
             setSelectedShippingOrder(null);
             setSuccessMessage(
                 `Metode pengiriman pesanan #${updatedShipping.id_order} berhasil diperbarui. Total baru ${formatRupiah(updatedShipping.total_harga)}.`
@@ -1313,6 +1439,162 @@ export default function MyOrders() {
                                                         )}
                                                     </button>
                                                 )}
+
+
+                                                {/* INFORMASI PENGIRIMAN */}
+
+                                                <div className="mt-5 rounded-2xl border border-pink-100 bg-[#FFF8FA] p-4">
+
+                                                    {order.tipe_pengiriman === "delivery" ? (
+                                                        <>
+                                                            <div className="mb-3 flex items-center gap-2">
+                                                                <Truck size={18} className="text-[#C9184A]" />
+
+                                                                <h3 className="text-sm font-bold text-[#590D22]">
+                                                                    Informasi Pengiriman
+                                                                </h3>
+                                                            </div>
+
+                                                            {order.alamat_pengiriman ? (
+                                                                <div className="space-y-3">
+
+                                                                    {order.nama_penerima && (
+                                                                        <div className="flex items-start gap-2">
+                                                                            <User
+                                                                                size={16}
+                                                                                className="mt-0.5 shrink-0 text-[#C9184A]"
+                                                                            />
+
+                                                                            <div>
+                                                                                <p className="text-xs text-[#98717E]">
+                                                                                    Nama Penerima
+                                                                                </p>
+
+                                                                                <p className="text-sm font-semibold text-[#590D22]">
+                                                                                    {order.nama_penerima}
+                                                                                </p>
+                                                                            </div>
+                                                                        </div>
+                                                                    )}
+
+                                                                    {order.no_hp_penerima && (
+                                                                        <div className="flex items-start gap-2">
+                                                                            <Phone
+                                                                                size={16}
+                                                                                className="mt-0.5 shrink-0 text-[#C9184A]"
+                                                                            />
+
+                                                                            <div>
+                                                                                <p className="text-xs text-[#98717E]">
+                                                                                    Nomor HP
+                                                                                </p>
+
+                                                                                <p className="text-sm font-semibold text-[#590D22]">
+                                                                                    {order.no_hp_penerima}
+                                                                                </p>
+                                                                            </div>
+                                                                        </div>
+                                                                    )}
+
+                                                                    <div className="flex items-start gap-2">
+                                                                        <MapPin
+                                                                            size={16}
+                                                                            className="mt-0.5 shrink-0 text-[#C9184A]"
+                                                                        />
+
+                                                                        <div className="min-w-0">
+                                                                            <p className="text-xs text-[#98717E]">
+                                                                                Alamat Pengiriman
+                                                                            </p>
+
+                                                                            <p className="whitespace-pre-line break-words text-sm font-medium text-[#590D22]">
+                                                                                {order.alamat_pengiriman}
+                                                                            </p>
+                                                                        </div>
+                                                                    </div>
+
+                                                                    {order.catatan_alamat_pengiriman?.trim() && (
+                                                                        <div className="flex items-start gap-2">
+                                                                            <FileText
+                                                                                size={16}
+                                                                                className="mt-0.5 shrink-0 text-[#C9184A]"
+                                                                            />
+
+                                                                            <div className="min-w-0">
+                                                                                <p className="text-xs text-[#98717E]">
+                                                                                    Catatan Alamat Pengiriman
+                                                                                </p>
+
+                                                                                <p className="whitespace-pre-line break-words text-sm font-medium text-[#590D22]">
+                                                                                    {order.catatan_alamat_pengiriman}
+                                                                                </p>
+                                                                            </div>
+                                                                        </div>
+                                                                    )}
+
+                                                                    {order.jarak_pengiriman !== null &&
+                                                                        order.jarak_pengiriman !== undefined &&
+                                                                        Number.isFinite(Number(order.jarak_pengiriman)) && (
+                                                                            <div className="flex items-start gap-2">
+                                                                                <Truck
+                                                                                    size={16}
+                                                                                    className="mt-0.5 shrink-0 text-[#C9184A]"
+                                                                                />
+
+                                                                                <div>
+                                                                                    <p className="text-xs text-[#98717E]">
+                                                                                        Jarak Pengiriman
+                                                                                    </p>
+
+                                                                                    <p className="text-sm font-semibold text-[#590D22]">
+                                                                                        {Number(order.jarak_pengiriman).toFixed(2)} km
+                                                                                    </p>
+                                                                                </div>
+                                                                            </div>
+                                                                        )}
+
+                                                                    <div className="flex items-center justify-between border-t border-pink-100 pt-3">
+                                                                        <span className="text-sm text-[#98717E]">
+                                                                            Ongkos Kirim
+                                                                        </span>
+
+                                                                        <span className="text-sm font-bold text-[#C9184A]">
+                                                                            {formatRupiah(Number(order.ongkir) || 0)}
+                                                                        </span>
+                                                                    </div>
+
+                                                                </div>
+                                                            ) : (
+                                                                <p className="text-sm text-[#98717E]">
+                                                                    Informasi alamat pengiriman belum tersedia untuk pesanan ini.
+                                                                </p>
+                                                            )}
+                                                        </>
+                                                    ) : (
+                                                        <div className="flex items-start gap-2">
+                                                            <Store
+                                                                size={18}
+                                                                className="mt-0.5 shrink-0 text-[#C9184A]"
+                                                            />
+
+                                                            <div>
+                                                                <h3 className="text-sm font-bold text-[#590D22]">
+                                                                    Pengambilan di Toko (Pickup)
+                                                                </h3>
+
+                                                                <p className="mt-1 text-xs text-[#98717E]">
+                                                                    Pesanan diambil langsung di toko SoeSweet.
+                                                                    Tidak ada alamat pengiriman maupun ongkos kirim.
+                                                                </p>
+
+                                                                <p className="mt-2 text-sm font-bold text-[#C9184A]">
+                                                                    Ongkos Kirim: {formatRupiah(0)}
+                                                                </p>
+                                                            </div>
+                                                        </div>
+                                                    )}
+
+                                                </div>
 
                                                 {/* TOTAL */}
 
@@ -2146,7 +2428,7 @@ export default function MyOrders() {
                         role="dialog"
                         aria-modal="true"
                         aria-labelledby="shipping-modal-title"
-                        className="my-auto w-full max-w-lg rounded-3xl bg-white p-5 shadow-2xl sm:p-7"
+                        className="my-auto max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-3xl bg-white p-5 shadow-2xl sm:p-7"
                     >
                         <div className="flex items-start justify-between gap-4">
                             <div>
@@ -2214,22 +2496,196 @@ export default function MyOrders() {
                         </fieldset>
 
                         {shippingType === "delivery" && (
-                            <label className="mt-5 block">
-                                <span className="mb-2 block text-sm font-bold text-[#590D22]">
-                                    Alamat pengiriman
-                                </span>
-                                <textarea
-                                    value={shippingAddress}
-                                    onChange={(event) => {
-                                        setShippingAddress(event.target.value);
-                                        setShippingError("");
-                                    }}
-                                    maxLength={500}
-                                    rows={3}
-                                    placeholder="Masukkan alamat lengkap untuk pengiriman"
-                                    className="w-full rounded-xl border border-pink-100 px-4 py-3 text-sm text-[#590D22] outline-none transition placeholder:text-pink-300 focus:border-[#C9184A] focus:ring-2 focus:ring-pink-100"
-                                />
-                            </label>
+                            <div className="mt-5">
+                                <fieldset>
+                                    <legend className="mb-2 text-sm font-bold text-[#590D22]">
+                                        Pilih sumber alamat
+                                    </legend>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <button
+                                            type="button"
+                                            disabled={
+                                                isLoadingShippingProfile ||
+                                                !shippingProfileAddress
+                                            }
+                                            onClick={() =>
+                                                handleShippingAddressSourceChange("profile")
+                                            }
+                                            aria-pressed={
+                                                shippingAddressSource === "profile"
+                                            }
+                                            className={`rounded-xl border px-3 py-3 text-sm font-bold transition disabled:cursor-not-allowed disabled:opacity-50 ${
+                                                shippingAddressSource === "profile"
+                                                    ? "border-[#C9184A] bg-[#FFF0F3] text-[#C9184A]"
+                                                    : "border-pink-100 text-[#98717E] hover:bg-pink-50"
+                                            }`}
+                                        >
+                                            Alamat Profil
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() =>
+                                                handleShippingAddressSourceChange("custom")
+                                            }
+                                            aria-pressed={
+                                                shippingAddressSource === "custom"
+                                            }
+                                            className={`rounded-xl border px-3 py-3 text-sm font-bold transition ${
+                                                shippingAddressSource === "custom"
+                                                    ? "border-[#C9184A] bg-[#FFF0F3] text-[#C9184A]"
+                                                    : "border-pink-100 text-[#98717E] hover:bg-pink-50"
+                                            }`}
+                                        >
+                                            Alamat Baru
+                                        </button>
+                                    </div>
+                                </fieldset>
+
+                                {isLoadingShippingProfile && (
+                                    <div className="mt-3 flex items-center gap-2 text-xs text-[#98717E]">
+                                        <LoaderCircle
+                                            size={15}
+                                            className="animate-spin"
+                                        />
+                                        Memuat alamat profil...
+                                    </div>
+                                )}
+
+                                {shippingProfileError && (
+                                    <p
+                                        role="alert"
+                                        className="mt-3 rounded-xl border border-amber-100 bg-amber-50 p-3 text-xs text-amber-800"
+                                    >
+                                        {shippingProfileError} Kamu tetap dapat mengisi alamat baru.
+                                    </p>
+                                )}
+
+                                {!isLoadingShippingProfile &&
+                                    !shippingProfileAddress &&
+                                    !shippingProfileError && (
+                                        <p className="mt-3 text-xs text-[#98717E]">
+                                            Alamat profil belum tersedia. Silakan pilih alamat baru.
+                                        </p>
+                                    )}
+
+                                {shippingAddressSource === "profile" &&
+                                    shippingProfileAddress && (
+                                        <div className="mt-4 space-y-3 rounded-xl border border-pink-100 bg-[#FFFBFC] p-4 text-sm text-[#590D22]">
+                                            <div>
+                                                <p className="text-xs text-[#98717E]">
+                                                    Nama Penerima
+                                                </p>
+                                                <p className="font-semibold">
+                                                    {shippingProfileAddress.nama_penerima}
+                                                </p>
+                                            </div>
+                                            <div>
+                                                <p className="text-xs text-[#98717E]">
+                                                    Nomor HP
+                                                </p>
+                                                <p className="font-semibold">
+                                                    {shippingProfileAddress.no_hp}
+                                                </p>
+                                            </div>
+                                            <div>
+                                                <p className="text-xs text-[#98717E]">
+                                                    Alamat Pengiriman
+                                                </p>
+                                                <p className="whitespace-pre-line break-words font-medium">
+                                                    {shippingProfileAddress.alamat}
+                                                </p>
+                                            </div>
+                                            {shippingProfileAddress.catatan?.trim() && (
+                                                <div>
+                                                    <p className="text-xs text-[#98717E]">
+                                                        Catatan Alamat Pengiriman
+                                                    </p>
+                                                    <p className="whitespace-pre-line break-words font-medium">
+                                                        {shippingProfileAddress.catatan}
+                                                    </p>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+
+                                {shippingAddressSource === "custom" && (
+                                    <div className="mt-4 space-y-4">
+                                        <label className="block">
+                                            <span className="mb-2 block text-sm font-bold text-[#590D22]">
+                                                Nama penerima
+                                            </span>
+                                            <input
+                                                type="text"
+                                                value={shippingRecipientName}
+                                                onChange={(event) => {
+                                                    setShippingRecipientName(
+                                                        event.target.value
+                                                    );
+                                                    setShippingError("");
+                                                }}
+                                                maxLength={100}
+                                                placeholder="Masukkan nama penerima"
+                                                className="w-full rounded-xl border border-pink-100 px-4 py-3 text-sm text-[#590D22] outline-none transition placeholder:text-pink-300 focus:border-[#C9184A] focus:ring-2 focus:ring-pink-100"
+                                            />
+                                        </label>
+
+                                        <label className="block">
+                                            <span className="mb-2 block text-sm font-bold text-[#590D22]">
+                                                Nomor HP penerima
+                                            </span>
+                                            <input
+                                                type="tel"
+                                                value={shippingRecipientPhone}
+                                                onChange={(event) => {
+                                                    setShippingRecipientPhone(
+                                                        event.target.value
+                                                    );
+                                                    setShippingError("");
+                                                }}
+                                                maxLength={20}
+                                                placeholder="Contoh: 081234567890"
+                                                className="w-full rounded-xl border border-pink-100 px-4 py-3 text-sm text-[#590D22] outline-none transition placeholder:text-pink-300 focus:border-[#C9184A] focus:ring-2 focus:ring-pink-100"
+                                            />
+                                        </label>
+
+                                        <label className="block">
+                                            <span className="mb-2 block text-sm font-bold text-[#590D22]">
+                                                Alamat pengiriman
+                                            </span>
+                                            <textarea
+                                                value={shippingAddress}
+                                                onChange={(event) => {
+                                                    setShippingAddress(event.target.value);
+                                                    setShippingError("");
+                                                }}
+                                                maxLength={500}
+                                                rows={3}
+                                                placeholder="Masukkan daerah alamat, seperti kabupaten, kota atau kecamatan..."
+                                                className="w-full rounded-xl border border-pink-100 px-4 py-3 text-sm text-[#590D22] outline-none transition placeholder:text-pink-300 focus:border-[#C9184A] focus:ring-2 focus:ring-pink-100"
+                                            />
+                                        </label>
+
+                                        <label className="block">
+                                            <span className="mb-2 block text-sm font-bold text-[#590D22]">
+                                                Catatan alamat pengiriman
+                                            </span>
+                                            <textarea
+                                                value={shippingAddressNote}
+                                                onChange={(event) => {
+                                                    setShippingAddressNote(
+                                                        event.target.value
+                                                    );
+                                                    setShippingError("");
+                                                }}
+                                                maxLength={500}
+                                                rows={2}
+                                                placeholder="Masukkan nama jalan, detail daerah alamat, atau patokan agar kurir dapat menemukan lokasi..."
+                                                className="w-full rounded-xl border border-pink-100 px-4 py-3 text-sm text-[#590D22] outline-none transition placeholder:text-pink-300 focus:border-[#C9184A] focus:ring-2 focus:ring-pink-100"
+                                            />
+                                        </label>
+                                    </div>
+                                )}
+                            </div>
                         )}
 
                         <p className="mt-3 text-xs leading-relaxed text-[#98717E]">
@@ -2257,11 +2713,7 @@ export default function MyOrders() {
                             <button
                                 type="button"
                                 onClick={handleUpdateShipping}
-                                disabled={
-                                    updatingShipping ||
-                                    (shippingType === "delivery" &&
-                                        !shippingAddress.trim())
-                                }
+                                disabled={updatingShipping}
                                 className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#C9184A] py-3 text-sm font-bold text-white shadow-md shadow-pink-100 transition hover:bg-[#A4133C] disabled:cursor-not-allowed disabled:opacity-50"
                             >
                                 {updatingShipping ? (
