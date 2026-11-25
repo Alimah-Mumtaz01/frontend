@@ -419,6 +419,12 @@ export default function OrderDetail() {
         allowedTransitions[status] || [];
 
     const payment = order.payment;
+    const paymentMethodName =
+        payment?.nama_metode_snapshot ||
+        (payment?.metode_pembayaran === "transfer_bank"
+            ? payment.paymentMethod?.nama_bank
+            : payment?.paymentMethod?.jenis_e_wallet) ||
+        "";
     const paymentProofPath = payment?.bukti_pembayaran
         ? payment.bukti_pembayaran.startsWith("uploads/")
             ? payment.bukti_pembayaran
@@ -993,6 +999,18 @@ export default function OrderDetail() {
                                         {payment.metode_pembayaran === "transfer_bank"
                                             ? "Transfer Bank"
                                             : "E-Wallet"}
+                                    </p>
+                                </div>
+
+                                <div>
+                                    <p className="text-xs text-[#98717E]">
+                                        {payment.metode_pembayaran === "transfer_bank"
+                                            ? "Nama Bank"
+                                            : "Jenis E-Wallet"}
+                                    </p>
+
+                                    <p className="mt-1 font-semibold text-[#590D22]">
+                                        {paymentMethodName || "-"}
                                     </p>
                                 </div>
 
