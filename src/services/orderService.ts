@@ -69,7 +69,15 @@ export interface OrderItem {
 export interface OrderPayment {
     id_payment: number;
     id_order: number;
+    id_metode_pembayaran?: number | null;
     metode_pembayaran: "transfer_bank" | "e-wallet";
+    nama_metode_snapshot?: string | null;
+    nomor_rekening_snapshot?: string | null;
+    username_snapshot?: string | null;
+    paymentMethod?: {
+        nama_bank?: string | null;
+        jenis_e_wallet?: string | null;
+    } | null;
     bukti_pembayaran: string | null;
     status_payment: PaymentStatus;
     verified_by?: number | null;
