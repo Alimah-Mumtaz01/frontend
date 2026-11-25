@@ -14,6 +14,8 @@ import {
   ChartColumnIncreasing,
   ArrowUpRight,
   CheckCircle2,
+  FileSpreadsheet,
+  FileText,
 } from "lucide-react";
 
 import {
@@ -82,6 +84,103 @@ const formatChartDate = (date: string) => {
     weekday: "short",
   }).format(parsed);
 };
+
+interface ReportExportSection {
+  title: string;
+  headers: string[];
+  rows: (string | number)[][];
+}
+
+const formatOrderDate = (date: string) =>
+  new Intl.DateTimeFormat("id-ID", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(new Date(date));
+
+const createReportSections = (
+  sales: SalesReportData,
+  orders: OrdersReportData,
+  products: ProductsReportData,
+  variants: VariantsReportData,
+): ReportExportSection[] => [
+  {
+    title: "Ringkasan",
+    headers: ["Metrik", "Nilai"],
+    rows: [
+      ["Total Penjualan", Number(sales.total_penjualan || 0)],
+      ["Jumlah Pesanan", Number(orders.total_pesanan || 0)],
+      ["Rata-rata Order", Number(sales.rata_rata_transaksi || 0)],
+      ["Transaksi Selesai", Number(sales.jumlah_transaksi_selesai || 0)],
+      ["Total Paket Terjual", Number(products.total_produk_terjual || 0)],
+    ],
+  },
+  {
+    title: "Penjualan Harian",
+    headers: ["Tanggal", "Jumlah Pesanan", "Total Penjualan"],
+    rows: sales.grafik_penjualan.map((item) => [
+      formatDisplayDate(item.tanggal),
+      item.jumlah_pesanan,
+      item.total_penjualan,
+    ]),
+  },
+  {
+    title: "Status Pesanan",
+    headers: ["Status", "Jumlah Pesanan"],
+    rows: Object.entries(orders.statistik_status).map(([status, count]) => [
+      status.replaceAll("_", " "),
+      count,
+    ]),
+  },
+  {
+    title: "Daftar Pesanan",
+    headers: [
+      "ID Pesanan",
+      "Nama Pelanggan",
+      "Email",
+      "Tipe Pengiriman",
+      "Total Harga",
+      "Status",
+      "Tanggal Pesanan",
+    ],
+    rows: orders.daftar_pesanan.map((order) => [
+      order.id_order,
+      order.pelanggan?.nama || "-",
+      order.pelanggan?.email || "-",
+      order.tipe_pengiriman || "-",
+      Number(order.total_harga || 0),
+      order.status_order.replaceAll("_", " "),
+      formatOrderDate(order.createdAt),
+    ]),
+  },
+  {
+    title: "Produk Terlaris",
+    headers: [
+      "ID Produk",
+      "Nama Produk",
+      "Jumlah Paket Terjual",
+      "Total Penjualan",
+    ],
+    rows: products.produk_terlaris.map((product) => [
+      product.id_product,
+      product.nama_product,
+      product.jumlah_paket_terjual,
+      product.total_penjualan,
+    ]),
+  },
+  {
+    title: "Varian Terlaris",
+    headers: ["ID Varian", "Nama Varian", "Jumlah Terjual", "Stok Tersedia"],
+    rows: variants.varian_terlaris.map((variant) => [
+      variant.id_varian,
+      variant.nama_varian,
+      variant.jumlah_terjual,
+      variant.stok_tersedia,
+    ]),
+  },
+];
+
+const createReportFilename = (startDate: string, endDate: string) =>
+  `laporan-soesweet-${startDate}-${endDate}`;
 
 function StatCard({
   title,
@@ -604,6 +703,133 @@ const [appliedDateRange, setAppliedDateRange] = useState(
 
   const bestVariants = variants?.varian_terlaris || [];
 
+  const handleExportExcel = async () => {
+    if (!sales || !orders || !products || !variants) {
+      setError("Data laporan belum tersedia untuk diekspor.");
+      return;
+    }
+
+    try {
+      const XLSX = await import("xlsx");
+      const workbook = XLSX.utils.book_new();
+      const sections = createReportSections(sales, orders, products, variants);
+
+      sections.forEach((section) => {
+        const worksheet = XLSX.utils.aoa_to_sheet([
+          [`Laporan ${section.title}`],
+          [
+            "Periode",
+            formatDisplayDate(appliedDateRange.startDate),
+            "s.d.",
+            formatDisplayDate(appliedDateRange.endDate),
+          ],
+          [],
+          section.headers,
+          ...section.rows,
+        ]);
+        worksheet["!cols"] = section.headers.map((header, columnIndex) => {
+          const longestValue = Math.max(
+            header.length,
+            ...section.rows.map((row) =>
+              String(row[columnIndex] ?? "").length
+            ),
+          );
+          return { wch: Math.min(Math.max(longestValue + 2, 12), 40) };
+        });
+
+        XLSX.utils.book_append_sheet(workbook, worksheet, section.title);
+      });
+
+      XLSX.writeFile(
+        workbook,
+        `${createReportFilename(
+          appliedDateRange.startDate,
+          appliedDateRange.endDate,
+        )}.xlsx`,
+      );
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? `Gagal mengekspor Excel: ${err.message}`
+          : "Gagal mengekspor laporan ke Excel.",
+      );
+    }
+  };
+
+  const handleExportPdf = async () => {
+    if (!sales || !orders || !products || !variants) {
+      setError("Data laporan belum tersedia untuk diekspor.");
+      return;
+    }
+
+    try {
+      const [{ jsPDF }, { default: autoTable }] = await Promise.all([
+        import("jspdf"),
+        import("jspdf-autotable"),
+      ]);
+      const document = new jsPDF({ orientation: "landscape" });
+      const sections = createReportSections(sales, orders, products, variants);
+
+      sections.forEach((section, index) => {
+        if (index > 0) document.addPage();
+
+        document.setFontSize(16);
+        document.text(`Laporan ${section.title}`, 14, 16);
+        document.setFontSize(10);
+        document.text(
+          `Periode: ${formatDisplayDate(appliedDateRange.startDate)} - ${formatDisplayDate(appliedDateRange.endDate)}`,
+          14,
+          23,
+        );
+
+        const rows =
+          section.rows.length > 0
+            ? section.rows.map((row) =>
+                row.map((value, columnIndex) => {
+                  const header = section.headers[columnIndex];
+                  if (
+                    typeof value === "number" &&
+                    ["Total Penjualan", "Rata-rata Order", "Total Harga"].includes(
+                      header,
+                    )
+                  ) {
+                    return formatCurrency(value);
+                  }
+                  return String(value);
+                }),
+              )
+            : [
+                [
+                  "Tidak ada data",
+                  ...Array(section.headers.length - 1).fill(""),
+                ],
+              ];
+
+        autoTable(document, {
+          head: [section.headers],
+          body: rows,
+          startY: 29,
+          margin: { left: 14, right: 14 },
+          styles: { fontSize: 8, cellPadding: 2 },
+          headStyles: { fillColor: [201, 24, 74] },
+        });
+      });
+
+      document.save(
+        `${createReportFilename(
+          appliedDateRange.startDate,
+          appliedDateRange.endDate,
+        )}.pdf`,
+      );
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? `Gagal mengekspor PDF: ${err.message}`
+          : "Gagal mengekspor laporan ke PDF.",
+      );
+    }
+  };
+
   return (
     <div className="space-y-6">
 
@@ -704,18 +930,36 @@ const [appliedDateRange, setAppliedDateRange] = useState(
           </span>
         </p>
 
-        <button
-          onClick={() => fetchReports(true)}
-          disabled={refreshing}
-          className="flex items-center gap-2 text-xs font-semibold text-[#C9184A] transition hover:text-[#800F2F] disabled:opacity-50"
-        >
-          <RefreshCw
-            size={14}
-            className={refreshing ? "animate-spin" : ""}
-          />
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={handleExportExcel}
+            className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-white px-3 py-2 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-50"
+          >
+            <FileSpreadsheet size={15} />
+            Ekspor Excel
+          </button>
 
-          {refreshing ? "Memperbarui..." : "Perbarui Data"}
-        </button>
+          <button
+            onClick={handleExportPdf}
+            className="flex items-center gap-2 rounded-lg border border-red-200 bg-white px-3 py-2 text-xs font-semibold text-red-700 transition hover:bg-red-50"
+          >
+            <FileText size={15} />
+            Ekspor PDF
+          </button>
+
+          <button
+            onClick={() => fetchReports(true)}
+            disabled={refreshing}
+            className="flex items-center gap-2 px-2 py-2 text-xs font-semibold text-[#C9184A] transition hover:text-[#800F2F] disabled:opacity-50"
+          >
+            <RefreshCw
+              size={14}
+              className={refreshing ? "animate-spin" : ""}
+            />
+
+            {refreshing ? "Memperbarui..." : "Perbarui Data"}
+          </button>
+        </div>
       </div>
 
       {error && (
