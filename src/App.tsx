@@ -31,6 +31,7 @@ import VariantForm from "./pages/admin/variants/VariantForm";
 // ADMIN ORDERS
 import OrderList from "./pages/admin/orders/OrderList";
 import OrderDetail from "./pages/admin/orders/OrderDetail";
+import PaymentMethodList from "./pages/admin/payment-methods/PaymentMethodList";
 
 // ADMIN CUSTOMERS
 import CustomerList from "./pages/admin/customers/CustomerList";
@@ -200,6 +201,11 @@ function App() {
                         element={<OrderDetail />}
                     />
                 </Route>
+
+                <Route
+                    path="payment-methods"
+                    element={<PaymentMethodList />}
+                />
 
                 {/* ==============================
                     KELOLA PELANGGAN
