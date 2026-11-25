@@ -4,6 +4,7 @@ import {
   Package,
   Layers,
   ShoppingBag,
+  CreditCard,
   Users,
   MessageSquare,
   ChartNoAxesCombined,
@@ -45,6 +46,11 @@ const menuItems = [
     icon: ShoppingBag,
   },
   {
+    label: "Metode Pembayaran",
+    path: "/admin/payment-methods",
+    icon: CreditCard,
+  },
+  {
     label: "Pelanggan",
     path: "/admin/customers",
     icon: Users,
@@ -70,7 +76,9 @@ export default function AdminLayout() {
 
   const handleLogout = () => {
     logout();
-    navigate("/secretloginadminsoesweet", { replace: true });
+    navigate("/secretloginadminsoesweet", {
+      replace: true,
+    });
   };
 
   return (
@@ -94,7 +102,7 @@ export default function AdminLayout() {
         }`}
       >
         {/* Logo */}
-        <div className="flex h-[82px] items-center justify-between border-b border-pink-100 px-6">
+        <div className="flex h-[74px] items-center justify-between border-b border-pink-100 px-5">
           <Link
             to="/admin/dashboard"
             className="flex items-center gap-3"
@@ -103,7 +111,7 @@ export default function AdminLayout() {
               <img
                 src="/images/logo-soesweet.png"
                 alt="SoeSweet"
-                className="h-20 w-auto max-w-[250px] object-contain"
+                className="h-16 w-auto max-w-[250px] object-contain"
               />
             </div>
           </Link>
@@ -117,7 +125,7 @@ export default function AdminLayout() {
         </div>
 
         {/* Menu */}
-        <nav className="flex-1 space-y-2 overflow-y-auto px-4 py-6">
+        <nav className="flex-1 space-y-1.5 overflow-y-auto px-3 py-5">
           {menuItems.map((item) => {
             const Icon = item.icon;
 
@@ -127,7 +135,7 @@ export default function AdminLayout() {
                 to={item.path}
                 onClick={() => setSidebarOpen(false)}
                 className={({ isActive }) =>
-                  `flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold transition ${
+                  `flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-semibold transition ${
                     isActive
                       ? "bg-gradient-to-r from-[#FF4D6D] to-[#C9184A] text-white shadow-md shadow-pink-200"
                       : "text-[#754052] hover:bg-[#FFF0F3] hover:text-[#C9184A]"
@@ -142,10 +150,10 @@ export default function AdminLayout() {
         </nav>
 
         {/* Logout */}
-        <div className="border-t border-pink-100 p-4">
+        <div className="border-t border-pink-100 p-3">
           <button
             onClick={handleLogout}
-            className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold text-[#754052] transition hover:bg-red-50 hover:text-red-600"
+            className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-semibold text-[#754052] transition hover:bg-red-50 hover:text-red-600"
           >
             <LogOut size={19} />
             Keluar
@@ -168,6 +176,7 @@ export default function AdminLayout() {
           </button>
 
           <div className="flex items-center gap-3 sm:gap-5">
+
             {/* Profile */}
             <div className="relative">
               <button
