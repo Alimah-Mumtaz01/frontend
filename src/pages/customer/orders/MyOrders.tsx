@@ -41,10 +41,12 @@ import {
 
 import {
     getMyOrders,
+    getActivePaymentMethods,
     uploadMyOrderPayment,
     updateMyOrderShipping,
     type CustomerOrder,
     type CustomerOrderStatus,
+    type CustomerPaymentMethod,
 } from "../../../services/customerOrderService";
 
 import {
@@ -316,10 +318,15 @@ export default function MyOrders() {
     const [paymentMethod, setPaymentMethod] = useState<
         "transfer_bank" | "e-wallet"
     >("transfer_bank");
-
-    const [selectedEwallet, setSelectedEwallet] = useState<
-        "DANA" | "GoPay" | "OVO" | "ShopeePay"
-    >("DANA");
+    const [activePaymentMethods, setActivePaymentMethods] = useState<
+        CustomerPaymentMethod[]
+    >([]);
+    const [paymentMethodsLoading, setPaymentMethodsLoading] = useState(false);
+    const [paymentMethodsError, setPaymentMethodsError] = useState("");
+    const [selectedPaymentMethodId, setSelectedPaymentMethodId] = useState<
+        number | null
+    >(null);
+    const paymentMethodsRequestRef = useRef(0);
 
     const [copiedValue, setCopiedValue] = useState("");
 
@@ -423,6 +430,14 @@ export default function MyOrders() {
     const getTabCount = (tab: OrderTab) => {
         return orders.filter((order) => matchesTab(order, tab)).length;
     };
+
+    const currentPaymentMethods = activePaymentMethods.filter(
+        (method) => method.jenis_metode === paymentMethod
+    );
+    const selectedPaymentMethod = activePaymentMethods.find(
+        (method) =>
+            method.id_metode_pembayaran === selectedPaymentMethodId
+    ) || null;
 
     const handleBuyAgain = (order: CustomerOrder) => {
         try {
@@ -716,19 +731,65 @@ export default function MyOrders() {
         }
     };
 
-    const openPaymentModal = (order: CustomerOrder) => {
+    const openPaymentModal = async (order: CustomerOrder) => {
+        const requestId = ++paymentMethodsRequestRef.current;
         setSelectedOrder(order);
         setPaymentMethod("transfer_bank");
-        setSelectedEwallet("DANA");
+        setActivePaymentMethods([]);
+        setPaymentMethodsError("");
+        setPaymentMethodsLoading(true);
+        setSelectedPaymentMethodId(null);
         setCopiedValue("");
         setSelectedFile(null);
         setFilePreview("");
         setFileError("");
+
+        try {
+            const methods = await getActivePaymentMethods();
+            if (requestId !== paymentMethodsRequestRef.current) return;
+
+            setActivePaymentMethods(methods);
+
+            const initialMethod =
+                methods.find((method) => method.jenis_metode === "transfer_bank") ||
+                methods[0];
+
+            setPaymentMethod(initialMethod?.jenis_metode || "transfer_bank");
+            setSelectedPaymentMethodId(
+                initialMethod?.id_metode_pembayaran ?? null
+            );
+        } catch (err) {
+            if (requestId === paymentMethodsRequestRef.current) {
+                setPaymentMethodsError(
+                    err instanceof Error
+                        ? err.message
+                        : "Gagal mengambil metode pembayaran."
+                );
+            }
+        } finally {
+            if (requestId === paymentMethodsRequestRef.current) {
+                setPaymentMethodsLoading(false);
+            }
+        }
+    };
+
+    const selectPaymentType = (type: "transfer_bank" | "e-wallet") => {
+        setPaymentMethod(type);
+        const firstMethod = activePaymentMethods.find(
+            (method) => method.jenis_metode === type
+        );
+        setSelectedPaymentMethodId(
+            firstMethod?.id_metode_pembayaran ?? null
+        );
+        setCopiedValue("");
         setSuccessMessage("");
     };
 
     const closePaymentModal = () => {
         if (uploading) return;
+
+        paymentMethodsRequestRef.current += 1;
+        setPaymentMethodsLoading(false);
 
         if (filePreview) {
             URL.revokeObjectURL(filePreview);
@@ -748,6 +809,21 @@ export default function MyOrders() {
             return;
         }
 
+        if (selectedPaymentMethodId === null) {
+            setFileError("Silakan pilih metode pembayaran yang tersedia.");
+            return;
+        }
+
+        const selectedPaymentMethod = activePaymentMethods.find(
+            (method) =>
+                method.id_metode_pembayaran === selectedPaymentMethodId
+        );
+
+        if (!selectedPaymentMethod) {
+            setFileError("Metode pembayaran tidak tersedia. Muat ulang pilihan metode.");
+            return;
+        }
+
         try {
             setUploading(true);
             setFileError("");
@@ -755,7 +831,7 @@ export default function MyOrders() {
 
             await uploadMyOrderPayment(
                 selectedOrder.id_order,
-                paymentMethod,
+                selectedPaymentMethodId,
                 selectedFile
             );
 
@@ -769,7 +845,19 @@ export default function MyOrders() {
                                 id_payment:
                                     order.payment?.id_payment || 0,
                                 id_order: order.id_order,
-                                metode_pembayaran: paymentMethod,
+                                id_metode_pembayaran:
+                                    selectedPaymentMethod.id_metode_pembayaran,
+                                metode_pembayaran:
+                                    selectedPaymentMethod.jenis_metode,
+                                nama_metode_snapshot:
+                                    selectedPaymentMethod.jenis_metode ===
+                                    "transfer_bank"
+                                        ? selectedPaymentMethod.nama_bank
+                                        : selectedPaymentMethod.jenis_e_wallet,
+                                nomor_rekening_snapshot:
+                                    selectedPaymentMethod.nomor_rekening,
+                                username_snapshot:
+                                    selectedPaymentMethod.username,
                                 bukti_pembayaran: selectedFile.name,
                                 status_payment: "pending",
                             },
@@ -2035,8 +2123,8 @@ export default function MyOrders() {
 
                                 <button
                                     type="button"
-                                    onClick={() => setPaymentMethod("transfer_bank")}
-                                    disabled={uploading}
+                                    onClick={() => selectPaymentType("transfer_bank")}
+                                    disabled={uploading || paymentMethodsLoading}
                                     className={`rounded-xl border p-4 text-left transition ${
                                         paymentMethod === "transfer_bank"
                                             ? "border-[#C9184A] bg-[#FFF0F3] ring-2 ring-pink-100"
@@ -2059,8 +2147,8 @@ export default function MyOrders() {
 
                                 <button
                                     type="button"
-                                    onClick={() => setPaymentMethod("e-wallet")}
-                                    disabled={uploading}
+                                    onClick={() => selectPaymentType("e-wallet")}
+                                    disabled={uploading || paymentMethodsLoading}
                                     className={`rounded-xl border p-4 text-left transition ${
                                         paymentMethod === "e-wallet"
                                             ? "border-[#C9184A] bg-[#FFF0F3] ring-2 ring-pink-100"
@@ -2084,6 +2172,24 @@ export default function MyOrders() {
                             </div>
                         </div>
 
+                        {paymentMethodsLoading && (
+                            <p className="mt-4 text-sm text-[#98717E]">
+                                Memuat metode pembayaran...
+                            </p>
+                        )}
+                        {paymentMethodsError && (
+                            <p className="mt-4 rounded-xl bg-red-50 p-3 text-sm text-red-700">
+                                {paymentMethodsError}
+                            </p>
+                        )}
+                        {!paymentMethodsLoading &&
+                            !paymentMethodsError &&
+                            activePaymentMethods.length === 0 && (
+                                <p className="mt-4 rounded-xl bg-amber-50 p-3 text-sm text-amber-800">
+                                    Belum ada metode pembayaran aktif.
+                                </p>
+                            )}
+
                         <div className="mt-5 rounded-2xl border border-pink-100 bg-white p-4">
 
                             {paymentMethod === "transfer_bank" ? (
@@ -2098,11 +2204,41 @@ export default function MyOrders() {
                                                 Transfer Bank
                                             </p>
                                             <h3 className="text-lg font-bold text-[#590D22]">
-                                                SMBC
+                                                {selectedPaymentMethod?.nama_bank ||
+                                                    "Pilih bank"}
                                             </h3>
                                         </div>
                                     </div>
 
+                                    <div className="mt-4 grid grid-cols-2 gap-2">
+                                        {currentPaymentMethods.map((method) => (
+                                            <button
+                                                key={method.id_metode_pembayaran}
+                                                type="button"
+                                                onClick={() => {
+                                                    setSelectedPaymentMethodId(
+                                                        method.id_metode_pembayaran
+                                                    );
+                                                    setCopiedValue("");
+                                                }}
+                                                disabled={uploading}
+                                                className={`rounded-xl border px-3 py-2 text-sm font-bold transition ${
+                                                    selectedPaymentMethodId ===
+                                                    method.id_metode_pembayaran
+                                                        ? "border-[#C9184A] bg-[#FFF0F3] text-[#C9184A]"
+                                                        : "border-pink-100 text-[#98717E] hover:bg-pink-50"
+                                                }`}
+                                            >
+                                                {method.nama_bank || "Bank"}
+                                            </button>
+                                        ))}
+                                    </div>
+
+                                    {currentPaymentMethods.length === 0 ? (
+                                        <p className="mt-4 text-sm text-[#98717E]">
+                                            Belum ada metode transfer bank yang aktif.
+                                        </p>
+                                    ) : (
                                     <div className="mt-4 space-y-4">
 
                                         <div>
@@ -2112,16 +2248,20 @@ export default function MyOrders() {
 
                                             <div className="mt-1 flex items-center justify-between gap-3">
                                                 <p className="text-lg font-bold tracking-wide text-[#590D22]">
-                                                    1234567890
+                                                    {selectedPaymentMethod?.nomor_rekening}
                                                 </p>
 
                                                 <button
                                                     type="button"
-                                                    onClick={() => handleCopyPaymentInfo("1234567890")}
-                                                    disabled={uploading}
+                                                    onClick={() =>
+                                                        handleCopyPaymentInfo(
+                                                            selectedPaymentMethod?.nomor_rekening || ""
+                                                        )
+                                                    }
+                                                    disabled={uploading || !selectedPaymentMethod}
                                                     className="inline-flex items-center gap-1.5 rounded-lg bg-[#FFF0F3] px-3 py-2 text-xs font-bold text-[#C9184A] transition hover:bg-pink-100"
                                                 >
-                                                    {copiedValue === "1234567890" ? (
+                                                    {copiedValue === selectedPaymentMethod?.nomor_rekening ? (
                                                         <>
                                                             <CheckCircle size={15} />
                                                             Tersalin
@@ -2143,16 +2283,20 @@ export default function MyOrders() {
 
                                             <div className="mt-1 flex items-center justify-between gap-3">
                                                 <p className="font-bold text-[#590D22]">
-                                                    soesweet
+                                                    {selectedPaymentMethod?.username}
                                                 </p>
 
                                                 <button
                                                     type="button"
-                                                    onClick={() => handleCopyPaymentInfo("soesweet")}
-                                                    disabled={uploading}
+                                                    onClick={() =>
+                                                        handleCopyPaymentInfo(
+                                                            selectedPaymentMethod?.username || ""
+                                                        )
+                                                    }
+                                                    disabled={uploading || !selectedPaymentMethod}
                                                     className="inline-flex items-center gap-1.5 rounded-lg bg-[#FFF0F3] px-3 py-2 text-xs font-bold text-[#C9184A] transition hover:bg-pink-100"
                                                 >
-                                                    {copiedValue === "soesweet" ? (
+                                                    {copiedValue === selectedPaymentMethod?.username ? (
                                                         <>
                                                             <CheckCircle size={15} />
                                                             Tersalin
@@ -2168,6 +2312,7 @@ export default function MyOrders() {
                                         </div>
 
                                     </div>
+                                    )}
                                 </>
                             ) : (
                                 <>
@@ -2181,57 +2326,69 @@ export default function MyOrders() {
                                                 Pembayaran Dompet Digital
                                             </p>
                                             <h3 className="text-lg font-bold text-[#590D22]">
-                                                E-Wallet
+                                                {selectedPaymentMethod?.jenis_e_wallet ||
+                                                    "Pilih E-Wallet"}
                                             </h3>
                                         </div>
                                     </div>
 
-                                    <p className="mb-3 mt-4 text-xs font-semibold text-[#98717E]">
-                                        Pilih Penyedia E-Wallet
-                                    </p>
+                                    {currentPaymentMethods.length === 0 ? (
+                                        <p className="mt-4 text-sm text-[#98717E]">
+                                            Belum ada metode E-Wallet yang aktif.
+                                        </p>
+                                    ) : (
+                                        <>
+                                            <p className="mb-3 mt-4 text-xs font-semibold text-[#98717E]">
+                                                Pilih Penyedia E-Wallet
+                                            </p>
 
-                                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                                        {(["DANA", "GoPay", "OVO", "ShopeePay"] as const).map(
-                                            (provider) => (
+                                            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                                                {currentPaymentMethods.map((method) => (
                                                 <button
-                                                    key={provider}
+                                                    key={method.id_metode_pembayaran}
                                                     type="button"
                                                     onClick={() => {
-                                                        setSelectedEwallet(provider);
+                                                        setSelectedPaymentMethodId(
+                                                            method.id_metode_pembayaran
+                                                        );
                                                         setCopiedValue("");
                                                     }}
                                                     disabled={uploading}
                                                     className={`rounded-xl border px-3 py-3 text-sm font-bold transition ${
-                                                        selectedEwallet === provider
+                                                        selectedPaymentMethodId ===
+                                                        method.id_metode_pembayaran
                                                             ? "border-[#C9184A] bg-[#FFF0F3] text-[#C9184A] ring-2 ring-pink-100"
                                                             : "border-pink-100 bg-white text-[#98717E] hover:bg-pink-50"
                                                     }`}
                                                 >
-                                                    {provider}
+                                                    {method.jenis_e_wallet || "E-Wallet"}
                                                 </button>
-                                            )
-                                        )}
-                                    </div>
+                                                ))}
+                                            </div>
 
                                     <div className="mt-4 space-y-4 rounded-xl bg-[#FFF9FA] p-3">
 
                                         <div>
                                             <p className="text-xs text-[#98717E]">
-                                                Nomor Akun {selectedEwallet}
+                                                Nomor Akun
                                             </p>
 
                                             <div className="mt-1 flex items-center justify-between gap-3">
                                                 <p className="text-lg font-bold tracking-wide text-[#590D22]">
-                                                    087654321
+                                                    {selectedPaymentMethod?.nomor_rekening}
                                                 </p>
 
                                                 <button
                                                     type="button"
-                                                    onClick={() => handleCopyPaymentInfo("087654321")}
-                                                    disabled={uploading}
+                                                    onClick={() =>
+                                                        handleCopyPaymentInfo(
+                                                            selectedPaymentMethod?.nomor_rekening || ""
+                                                        )
+                                                    }
+                                                    disabled={uploading || !selectedPaymentMethod}
                                                     className="inline-flex items-center gap-1.5 rounded-lg bg-[#FFF0F3] px-3 py-2 text-xs font-bold text-[#C9184A] transition hover:bg-pink-100"
                                                 >
-                                                    {copiedValue === "087654321" ? (
+                                                    {copiedValue === selectedPaymentMethod?.nomor_rekening ? (
                                                         <>
                                                             <CheckCircle size={15} />
                                                             Tersalin
@@ -2253,16 +2410,20 @@ export default function MyOrders() {
 
                                             <div className="mt-1 flex items-center justify-between gap-3">
                                                 <p className="font-bold text-[#590D22]">
-                                                    soesweet
+                                                    {selectedPaymentMethod?.username}
                                                 </p>
 
                                                 <button
                                                     type="button"
-                                                    onClick={() => handleCopyPaymentInfo("soesweet")}
-                                                    disabled={uploading}
+                                                    onClick={() =>
+                                                        handleCopyPaymentInfo(
+                                                            selectedPaymentMethod?.username || ""
+                                                        )
+                                                    }
+                                                    disabled={uploading || !selectedPaymentMethod}
                                                     className="inline-flex items-center gap-1.5 rounded-lg bg-[#FFF0F3] px-3 py-2 text-xs font-bold text-[#C9184A] transition hover:bg-pink-100"
                                                 >
-                                                    {copiedValue === "soesweet" ? (
+                                                    {copiedValue === selectedPaymentMethod?.username ? (
                                                         <>
                                                             <CheckCircle size={15} />
                                                             Tersalin
@@ -2278,6 +2439,8 @@ export default function MyOrders() {
                                         </div>
 
                                     </div>
+                                        </>
+                                    )}
                                 </>
                             )}
 
@@ -2409,7 +2572,13 @@ export default function MyOrders() {
 
                             <button
                                 onClick={handleUploadPayment}
-                                disabled={uploading || !selectedFile}
+                                disabled={
+                                    uploading ||
+                                    !selectedFile ||
+                                    selectedPaymentMethodId === null ||
+                                    paymentMethodsLoading ||
+                                    Boolean(paymentMethodsError)
+                                }
                                 className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#C9184A] py-3 text-sm font-bold text-white shadow-md shadow-pink-100 transition hover:bg-[#A4133C] disabled:cursor-not-allowed disabled:opacity-50"
                             >
                                 {uploading ? (
