@@ -200,22 +200,11 @@ export default function Checkout() {
 
   const buildCheckoutPayload = (): CheckoutRequest => {
     if (shippingType === "pickup") {
-        return {
-          tipe_pengiriman: "delivery",
-          address_source: "custom",
-          nama_penerima: recipientName.trim(),
-          no_hp_penerima: recipientPhone.trim(),
-          alamat_pengiriman: address.trim(),
-
-          // Catatan khusus untuk alamat pengiriman.
-          catatan_alamat_pengiriman:
-            addressNote.trim() || null,
-
-          // Catatan umum untuk pesanan.
-          catatan: note.trim() || null,
-
-          items: mapCartToCheckoutItems(items),
-        };
+      return {
+        tipe_pengiriman: "pickup",
+        catatan: note.trim() || null,
+        items: mapCartToCheckoutItems(items),
+      };
     }
 
     if (addressSource === "profile") {
