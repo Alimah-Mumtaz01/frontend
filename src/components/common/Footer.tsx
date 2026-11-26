@@ -79,7 +79,12 @@ export default function Footer() {
 
             <li className="flex items-center gap-3">
               <Mail size={18} />
-              <span>soesweet@gmail.com</span>
+              <a
+                href="mailto:mysoesweet@gmail.com"
+                className="transition-colors hover:text-white hover:underline"
+              >
+                mysoesweet@gmail.com
+              </a>
             </li>
           </ul>
         </div>
@@ -95,7 +100,9 @@ export default function Footer() {
 
           <div className="flex gap-3">
             <a
-              href="#"
+              href="https://www.instagram.com/soess.sweet?jplx=MXVhOGN2aGwxZGpqMw=="
+              target="_blank"
+              rel="noopener noreferrer"
               aria-label="Instagram"
               className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 transition hover:bg-soe-primary"
             >
@@ -114,7 +121,9 @@ export default function Footer() {
             </a>
 
             <a
-              href="#"
+              href="https://www.tiktok.com/@soes_sweet?_r=1&_t=ZS-9BiXWwMwNSJ"
+              target="_blank"
+              rel="noopener noreferrer"
               aria-label="TikTok"
               className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 transition hover:bg-soe-primary"
             >
@@ -122,7 +131,9 @@ export default function Footer() {
             </a>
 
             <a
-              href="#"
+              href="https://www.facebook.com/share/16SrLqe2yfA/"
+              target="_blank"
+              rel="noopener noreferrer"
               aria-label="Facebook"
               className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 transition hover:bg-soe-primary"
             >
