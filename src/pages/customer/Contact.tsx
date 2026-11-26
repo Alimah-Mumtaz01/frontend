@@ -8,31 +8,45 @@ import {
   Clock,
   Headphones,
   ArrowRight,
+  Navigation,
 } from "lucide-react";
 
 import { Link } from "react-router";
 
 const contactInfo = {
-  address: "Kp.Gandrung RT04 RW10 No.02 Desa Jambudipa Kec.Cisarua Kab.Bandung Barat Prov.Jawa Barat 40551",
+  address:
+    "Kp.Gandrung RT04 RW10 No.02 Desa Jambudipa Kec.Cisarua Kab.Bandung Barat Prov.Jawa Barat 40551",
 
-  phoneDisplay: "0858 6240 7212",
-  whatsappNumber: "+62 858 6240 7212",
+  phoneDisplay: "+62 858 6240 7212",
+  whatsappNumber: "6285862407212",
 
-  email: "soesweet@gmail.com",
+  email: "mysoesweet@gmail.com",
+
+  // Lokasi Google Maps SoeSweet
+  latitude: -6.8178583,
+  longitude: 107.5618367,
+
+  // URL untuk menampilkan Google Maps
+  mapsEmbedUrl:
+    "https://www.google.com/maps?q=-6.8178583,107.5618367&output=embed",
+
+  // URL untuk mengarahkan customer ke Google Maps
+  mapsDirectionsUrl:
+    "https://www.google.com/maps/dir/?api=1&destination=-6.8178583%2C107.5618367",
 
   instagram: {
     username: "@soesweet",
-    url: "https://www.instagram.com/",
+    url: "https://www.instagram.com/soess.sweet?jplx=MXVhOGN2aGwxZGpqMw==",
   },
 
   facebook: {
     username: "SoeSweet",
-    url: "https://www.facebook.com/",
+    url: "https://www.facebook.com/share/16SrLqe2yfA/",
   },
 
   tiktok: {
     username: "@soesweet",
-    url: "https://www.tiktok.com/",
+    url: "https://www.tiktok.com/@soes_sweet?_r=1&_t=ZS-9BiXWwMwNSJ",
   },
 };
 
@@ -135,9 +149,15 @@ export default function Contact() {
             </p>
 
             <div className="mt-6 border-t border-[#F8DDE4] pt-5">
-              <span className="text-sm font-semibold text-[#C9184A]">
-                Lokasi SoeSweet
-              </span>
+              <a
+                href={contactInfo.mapsDirectionsUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 text-sm font-semibold text-[#C9184A] transition hover:text-[#800F2F]"
+              >
+                Lihat Lokasi
+                <ArrowUpRight size={16} />
+              </a>
             </div>
           </div>
 
@@ -178,9 +198,12 @@ export default function Contact() {
               Email
             </h3>
 
-            <p className="mt-3 min-h-[56px] break-all text-sm leading-7 text-[#79505C]">
+            <a
+              href={`mailto:${contactInfo.email}`}
+              className="mt-3 inline-block min-h-[56px] break-all text-sm leading-7 text-[#79505C] transition hover:text-[#C9184A] hover:underline"
+            >
               {contactInfo.email}
-            </p>
+            </a>
 
             <div className="mt-6 border-t border-[#F8DDE4] pt-5">
               <a
@@ -196,8 +219,139 @@ export default function Contact() {
         </div>
       </section>
 
-      {/* SOCIAL MEDIA SECTION */}
+      {/* GOOGLE MAPS LOCATION SECTION */}
       <section className="bg-white py-20 md:py-24">
+        <div className="mx-auto max-w-7xl px-5 sm:px-8">
+
+          {/* SECTION HEADING */}
+          <div className="mx-auto max-w-2xl text-center">
+
+            <span className="text-sm font-bold uppercase tracking-[0.2em] text-[#C9184A]">
+              Lokasi Kami
+            </span>
+
+            <h2 className="mt-4 text-3xl font-extrabold sm:text-4xl">
+              Temukan Lokasi{" "}
+              <span className="text-[#C9184A]">SoeSweet</span>
+            </h2>
+
+            <p className="mt-5 leading-8 text-[#79505C]">
+              Ingin mengambil pesanan secara langsung? Kunjungi lokasi
+              SoeSweet melalui peta di bawah ini dan temukan rute perjalanan
+              menuju tempat pickup pesananmu.
+            </p>
+
+          </div>
+
+          {/* MAP CONTAINER */}
+          <div className="mx-auto mt-12 max-w-6xl overflow-hidden rounded-3xl border border-[#F8DDE4] bg-white shadow-lg shadow-[#C9184A]/5">
+
+            {/* MAP HEADER */}
+            <div className="flex flex-col gap-4 bg-[#FFF0F3] p-6 sm:flex-row sm:items-center sm:justify-between sm:p-8">
+
+              <div className="flex items-start gap-4">
+
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white text-[#C9184A] shadow-sm">
+                  <MapPin size={25} />
+                </div>
+
+                <div>
+                  <h3 className="text-xl font-bold">
+                    SoeSweet
+                  </h3>
+
+                  <p className="mt-2 text-sm leading-7 text-[#79505C]">
+                    {contactInfo.address}
+                  </p>
+                </div>
+
+              </div>
+
+              <span className="inline-flex w-fit shrink-0 items-center gap-2 rounded-full bg-white px-4 py-2 text-xs font-semibold text-[#C9184A] shadow-sm">
+                <span className="h-2 w-2 rounded-full bg-[#C9184A]" />
+                Lokasi Pickup
+              </span>
+
+            </div>
+
+            {/* GOOGLE MAPS EMBED */}
+            <div className="relative h-[350px] w-full sm:h-[450px]">
+
+              <iframe
+                title="Lokasi Pickup SoeSweet di Google Maps"
+                src={contactInfo.mapsEmbedUrl}
+                width="100%"
+                height="100%"
+                style={{ border: 0 }}
+                loading="lazy"
+                allowFullScreen
+                referrerPolicy="no-referrer-when-downgrade"
+              />
+
+            </div>
+
+            {/* MAP FOOTER */}
+            <div className="flex flex-col items-center justify-between gap-5 border-t border-[#F8DDE4] p-6 sm:flex-row sm:p-8">
+
+              <div className="flex items-center gap-3">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#FFF0F3] text-[#C9184A]">
+                  <Navigation size={21} />
+                </div>
+
+                <div>
+                  <h4 className="font-bold">
+                    Ingin Berkunjung ke SoeSweet?
+                  </h4>
+
+                  <p className="mt-1 text-xs leading-6 text-[#79505C]">
+                    Dapatkan petunjuk arah menuju lokasi pickup kami.
+                  </p>
+                </div>
+              </div>
+
+              <a
+                href={contactInfo.mapsDirectionsUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#C9184A] px-7 py-3.5 text-sm font-semibold text-white shadow-lg shadow-[#C9184A]/20 transition hover:-translate-y-1 hover:bg-[#A4133C] sm:w-auto"
+              >
+                <Navigation size={18} />
+                Petunjuk Arah ke SoeSweet
+                <ArrowUpRight size={17} />
+              </a>
+
+            </div>
+
+          </div>
+
+          {/* PICKUP INFORMATION */}
+          <div className="mx-auto mt-8 max-w-6xl rounded-2xl border border-[#F8DDE4] bg-[#FFF9FA] p-6">
+
+            <div className="flex items-start gap-3">
+              <MapPin size={21} className="mt-1 shrink-0 text-[#C9184A]" />
+
+              <div>
+                <h4 className="font-bold">
+                  Informasi Pengambilan Pesanan
+                </h4>
+
+                <p className="mt-2 text-sm leading-7 text-[#79505C]">
+                  Customer yang memilih metode pengiriman pickup dapat
+                  menggunakan peta ini sebagai panduan menuju lokasi
+                  SoeSweet. Pastikan untuk menghubungi kami terlebih dahulu
+                  apabila membutuhkan informasi lebih lanjut mengenai
+                  pengambilan pesanan.
+                </p>
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+      </section>
+
+      {/* SOCIAL MEDIA SECTION */}
+      <section className="bg-[#FFF9FA] py-20 md:py-24">
         <div className="mx-auto max-w-7xl px-5 sm:px-8">
 
           <div className="mx-auto max-w-2xl text-center">
@@ -223,10 +377,10 @@ export default function Contact() {
                   href={social.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="group rounded-3xl border border-[#F8DDE4] bg-[#FFF9FA] p-7 transition duration-300 hover:-translate-y-2 hover:border-[#FFB3C1] hover:bg-[#FFF0F3] hover:shadow-xl hover:shadow-[#C9184A]/5"
+                  className="group rounded-3xl border border-[#F8DDE4] bg-white p-7 transition duration-300 hover:-translate-y-2 hover:border-[#FFB3C1] hover:bg-[#FFF0F3] hover:shadow-xl hover:shadow-[#C9184A]/5"
                 >
                   <div className="flex items-center justify-between">
-                    <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white text-[#C9184A] shadow-sm transition group-hover:bg-[#C9184A] group-hover:text-white">
+                    <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#FFF9FA] text-[#C9184A] shadow-sm transition group-hover:bg-[#C9184A] group-hover:text-white">
                       {social.icon === "instagram" ? (
                         <svg
                           aria-hidden="true"
